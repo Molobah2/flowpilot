@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  env: {
+    NEXT_PUBLIC_TREASURY_ADDRESS:
+      process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "",
+    NEXT_PUBLIC_FLOWVAULT_CONTRACT_ADDRESS:
+      process.env.NEXT_PUBLIC_FLOWVAULT_CONTRACT_ADDRESS ??
+      "STD7QG84VQQ0C35SZM2EYTHZV4M8FQ0R7YNSQWPD",
+    NEXT_PUBLIC_FLOWVAULT_CONTRACT_NAME:
+      process.env.NEXT_PUBLIC_FLOWVAULT_CONTRACT_NAME ?? "flowvault-v2",
+    NEXT_PUBLIC_FLOWVAULT_TOKEN_CONTRACT_ADDRESS:
+      process.env.NEXT_PUBLIC_FLOWVAULT_TOKEN_CONTRACT_ADDRESS ??
+      "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+    NEXT_PUBLIC_FLOWVAULT_TOKEN_CONTRACT_NAME:
+      process.env.NEXT_PUBLIC_FLOWVAULT_TOKEN_CONTRACT_NAME ?? "usdcx",
+  },
 };
 
 export default nextConfig;
