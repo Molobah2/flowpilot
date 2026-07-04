@@ -146,14 +146,14 @@ Key variables:
 
 ## Testnet Explorer Links
 
-> Curated from the GATE 1 smoke test run — to be updated after production run.
+GATE 1 smoke test — 2-recipient plan (Alice 60%, Bob 40%), 2 USDCx, block ~4030302.
 
-| Step | Function | Explorer |
+| Step | Function | txid |
 |---|---|---|
-| Tranche 1 routing | `set-routing-rules` | *(added after smoke test)* |
-| Tranche 1 deposit | `deposit` | *(added after smoke test)* |
-| Tranche 2 routing | `set-routing-rules` | *(added after smoke test)* |
-| Tranche 2 deposit | `deposit` | *(added after smoke test)* |
+| Tranche 1 — set rules (Alice) | `set-routing-rules` | [ee10a669…](https://explorer.hiro.so/txid/ee10a669d1392983a992575e3dfc640a418922142bddbe0d099bc8bc724f218a?chain=testnet) |
+| Tranche 1 — deposit (Alice 60%) | `deposit` | [7f5dd3e1…](https://explorer.hiro.so/txid/7f5dd3e1e9289d60d0f9abeaf76dbaa405c40454a8a24713147157213d7d8fa8?chain=testnet) |
+| Tranche 2 — set rules (Bob) | `set-routing-rules` | [7751ccfd…](https://explorer.hiro.so/txid/7751ccfde15ad0cc7874eb8246cfe7d63a6346236aaa68eced04fb84bdcbf9e5?chain=testnet) |
+| Tranche 2 — deposit (Bob 40%) | `deposit` | [83d5df4f…](https://explorer.hiro.so/txid/83d5df4ff939765d4952cb7710f3aab1339b4f8e36ac5ade640b020d911a389d?chain=testnet) |
 
 ---
 

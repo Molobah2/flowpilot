@@ -3,7 +3,8 @@
  * Calls onDeposit when a new transfer is detected.
  */
 
-const USDCX_TOKEN_IDENTIFIER = "usdcx";
+// Actual token name as reported by the Hiro API FT balances endpoint
+const USDCX_TOKEN_IDENTIFIER = "usdcx-token";
 
 export interface IncomingTransfer {
   txId: string;

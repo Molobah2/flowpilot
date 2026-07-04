@@ -37,17 +37,30 @@ async function main() {
   const senderAddress = getAddressFromPrivateKey(key, "testnet");
   console.log(`\n[smoke] Treasury address: ${senderAddress}`);
 
-  // Check current vault state
-  const before = await sdk.getVaultState(senderAddress);
-  console.log(`[smoke] Vault BEFORE: total=${before.totalBalance}, unlocked=${before.unlockedBalance}`);
+  // Check raw USDCx wallet balance (NOT vault balance — deposit() moves wallet→vault)
+  const TOKEN_ID = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.usdcx::usdcx-token";
+  const balRes = await fetch(
+    `https://api.testnet.hiro.so/extended/v1/address/${senderAddress}/balances`
+  );
+  const balData = (await balRes.json()) as {
+    fungible_tokens?: Record<string, { balance: string }>;
+  };
+  const rawBalance = BigInt(
+    balData.fungible_tokens?.[TOKEN_ID]?.balance ?? "0"
+  );
+  console.log(`[smoke] USDCx wallet balance: ${rawBalance} micro-USDCx`);
 
-  if (BigInt(before.unlockedBalance) < totalMicro) {
+  if (rawBalance < totalMicro) {
     console.warn(
-      `[smoke] WARNING: unlocked balance (${before.unlockedBalance}) < smoke amount (${totalMicro}). ` +
-      `Deposit USDCx to ${senderAddress} first.`
+      `[smoke] WARNING: wallet balance (${rawBalance}) < smoke amount (${totalMicro}). ` +
+      `Fund ${senderAddress} with testnet USDCx first.`
     );
     process.exit(1);
   }
+
+  // Vault state before (will be 0 if no prior deposits — that's correct)
+  const before = await sdk.getVaultState(senderAddress);
+  console.log(`[smoke] Vault BEFORE: total=${before.totalBalance}, unlocked=${before.unlockedBalance}`);
 
   // Policy: Alice 60%, Bob 40%
   const policy = PolicySchema.parse({

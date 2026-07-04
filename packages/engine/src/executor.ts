@@ -35,11 +35,9 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;   // 5 minutes per step
 const DEFAULT_POLL_MS = 5_000;
 
 function explorerUrl(txId: string, network: string): string {
-  const base =
-    network === "mainnet"
-      ? "https://explorer.hiro.so"
-      : "https://explorer.hiro.so/?chain=testnet";
-  return `${base}/txid/${txId}`;
+  return network === "mainnet"
+    ? `https://explorer.hiro.so/txid/${txId}`
+    : `https://explorer.hiro.so/txid/${txId}?chain=testnet`;
 }
 
 async function pollTxConfirmed(
