@@ -1,0 +1,11 @@
+{
+  "name": "demo-treasury",
+  "recipients": [
+    { "address": "ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5", "sharePct": 50, "label": "Alice" },
+    { "address": "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG", "sharePct": 35, "label": "Bob" }
+  ],
+  "reservePct": 10,
+  "holdPct": 5,
+  "unlockAt": "2026-08-01T00:00:00Z",
+  "trigger": "deposit"
+}
