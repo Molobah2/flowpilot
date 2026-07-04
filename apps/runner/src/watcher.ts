@@ -1,9 +1,10 @@
 /**
  * Polls Hiro API for incoming USDCx transfers to the treasury address.
- * Calls onDeposit when a new transfer is detected.
+ * Uses /extended/v1/address/{addr}/transactions_with_transfers which
+ * returns ft_transfers inline per transaction.
  */
 
-// Actual token name as reported by the Hiro API FT balances endpoint
+// Actual fungible token name as reported by the Hiro API
 const USDCX_TOKEN_IDENTIFIER = "usdcx-token";
 
 export interface IncomingTransfer {
@@ -16,17 +17,21 @@ export interface IncomingTransfer {
 
 type OnDeposit = (transfer: IncomingTransfer) => Promise<void>;
 
-interface HiroTx {
-  tx_id: string;
-  tx_status: string;
-  block_height: number;
-  burn_block_time_iso: string;
-  ft_transfers?: Array<{
-    asset_identifier: string;
-    recipient: string;
-    sender: string;
-    amount: string;
-  }>;
+interface FtTransfer {
+  asset_identifier: string;
+  recipient: string;
+  sender: string;
+  amount: string;
+}
+
+interface HiroTxWithTransfers {
+  tx: {
+    tx_id: string;
+    tx_status: string;
+    block_height: number;
+    burn_block_time_iso: string;
+  };
+  ft_transfers: FtTransfer | FtTransfer[] | null;
 }
 
 export async function startWatcher(
@@ -65,25 +70,32 @@ async function poll(
   onDeposit: OnDeposit,
   idempotencyHas: (txId: string) => boolean
 ): Promise<void> {
-  // Use v2 address transactions endpoint with FT filter
+  // v1 transactions_with_transfers includes ft_transfers inline
   const url =
-    `${hiroApiUrl}/extended/v2/addresses/${treasuryAddress}/transactions` +
-    `?limit=50&order=desc`;
+    `${hiroApiUrl}/extended/v1/address/${treasuryAddress}/transactions_with_transfers` +
+    `?limit=50`;
 
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Hiro API ${res.status}: ${await res.text()}`);
   }
 
-  const data = (await res.json()) as { results?: HiroTx[] };
+  const data = (await res.json()) as { results?: HiroTxWithTransfers[] };
   const txs = data.results ?? [];
 
-  for (const tx of txs) {
+  for (const entry of txs) {
+    const tx = entry.tx;
     if (tx.tx_status !== "success") continue;
     if (idempotencyHas(tx.tx_id)) continue;
 
-    const ftTransfers = tx.ft_transfers ?? [];
-    for (const ft of ftTransfers) {
+    // ft_transfers may be a single object or an array depending on event count
+    const ftList: FtTransfer[] = entry.ft_transfers
+      ? Array.isArray(entry.ft_transfers)
+        ? entry.ft_transfers
+        : [entry.ft_transfers]
+      : [];
+
+    for (const ft of ftList) {
       if (
         ft.recipient === treasuryAddress &&
         ft.asset_identifier === assetIdentifier
@@ -96,10 +108,11 @@ async function poll(
           timestamp: tx.burn_block_time_iso,
         };
         console.log(
-          `[watcher] Incoming transfer detected: ${transfer.amount} micro-USDCx from ${transfer.sender} (tx: ${transfer.txId})`
+          `[watcher] Incoming transfer detected: ${transfer.amount} micro-USDCx ` +
+          `from ${transfer.sender} (tx: ${transfer.txId})`
         );
         await onDeposit(transfer);
-        break; // one deposit event per tx
+        break;
       }
     }
   }

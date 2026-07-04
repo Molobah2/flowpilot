@@ -146,14 +146,29 @@ Key variables:
 
 ## Testnet Explorer Links
 
-GATE 1 smoke test — 2-recipient plan (Alice 60%, Bob 40%), 2 USDCx, block ~4030302.
+### GATE 2 — Full autonomous run (5 USDCx, demo-treasury policy, unattended)
 
-| Step | Function | txid |
+Incoming deposit detected automatically by the runner. Policy: Alice 50%, Bob 35%, Reserve 10% locked to Aug 1 2026 (block 4,265,507), Hold 5%.
+
+| Step | Function | Explorer |
 |---|---|---|
-| Tranche 1 — set rules (Alice) | `set-routing-rules` | [ee10a669…](https://explorer.hiro.so/txid/ee10a669d1392983a992575e3dfc640a418922142bddbe0d099bc8bc724f218a?chain=testnet) |
-| Tranche 1 — deposit (Alice 60%) | `deposit` | [7f5dd3e1…](https://explorer.hiro.so/txid/7f5dd3e1e9289d60d0f9abeaf76dbaa405c40454a8a24713147157213d7d8fa8?chain=testnet) |
-| Tranche 2 — set rules (Bob) | `set-routing-rules` | [7751ccfd…](https://explorer.hiro.so/txid/7751ccfde15ad0cc7874eb8246cfe7d63a6346236aaa68eced04fb84bdcbf9e5?chain=testnet) |
-| Tranche 2 — deposit (Bob 40%) | `deposit` | [83d5df4f…](https://explorer.hiro.so/txid/83d5df4ff939765d4952cb7710f3aab1339b4f8e36ac5ade640b020d911a389d?chain=testnet) |
+| Set rules — Alice (50%) | `set-routing-rules` | [3210aa85…](https://explorer.hiro.so/txid/3210aa85b1edffae049a626ff9a00d03b9d87950a8ea4a6e3141ce5f2e3983f7?chain=testnet) |
+| Deposit — Alice 2.5 USDCx | `deposit` | [fe4aa512…](https://explorer.hiro.so/txid/fe4aa51208bbb280a12383f26120e6ab4f988651e98837e135d2cb1a2e6348ae?chain=testnet) |
+| Set rules — Bob (35%) + lock 0.5 USDCx | `set-routing-rules` | [b3725758…](https://explorer.hiro.so/txid/b37257580473bcc384eb606c5da52da43f8f46d1f8c83d9da27e03c0dea89e41?chain=testnet) |
+| Deposit — Bob 1.75 USDCx + 0.5 locked | `deposit` | [37cc615a…](https://explorer.hiro.so/txid/37cc615af2473985ef58e555ad245c9130700f745a0b8f82104e14e134827f4f?chain=testnet) |
+| Clear rules (hold tranche) | `clear-routing-rules` | [21c544b9…](https://explorer.hiro.so/txid/21c544b9089d96296650878d3b23a46ff50d1fb62ff8ddbad0ea0487f0b6d90e?chain=testnet) |
+| Deposit — Hold 0.25 USDCx | `deposit` | [14000a2e…](https://explorer.hiro.so/txid/14000a2e52d13e06ac2397ed6b08dfd4d794c8f43ce90a3e4778cbdf398af461?chain=testnet) |
+
+**getVaultState after:** total=750,000 · locked=500,000 · unlocked=250,000 ✓
+
+### GATE 1 — Smoke test (2 USDCx, 2-recipient, manual)
+
+| Step | Function | Explorer |
+|---|---|---|
+| Set rules — Alice (60%) | `set-routing-rules` | [ee10a669…](https://explorer.hiro.so/txid/ee10a669d1392983a992575e3dfc640a418922142bddbe0d099bc8bc724f218a?chain=testnet) |
+| Deposit — Alice 1.2 USDCx | `deposit` | [7f5dd3e1…](https://explorer.hiro.so/txid/7f5dd3e1e9289d60d0f9abeaf76dbaa405c40454a8a24713147157213d7d8fa8?chain=testnet) |
+| Set rules — Bob (40%) | `set-routing-rules` | [7751ccfd…](https://explorer.hiro.so/txid/7751ccfde15ad0cc7874eb8246cfe7d63a6346236aaa68eced04fb84bdcbf9e5?chain=testnet) |
+| Deposit — Bob 0.8 USDCx | `deposit` | [83d5df4f…](https://explorer.hiro.so/txid/83d5df4ff939765d4952cb7710f3aab1339b4f8e36ac5ade640b020d911a389d?chain=testnet) |
 
 ---
 
