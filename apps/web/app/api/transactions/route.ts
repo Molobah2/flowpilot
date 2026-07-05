@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `Hiro API ${res.status}` }, { status: 502 });
     }
     const data = await res.json();
-    return NextResponse.json(data);
+    const results = (data.results ?? []).map(
+      (r: { tx?: Record<string, unknown> }) => r.tx ?? r
+    );
+    return NextResponse.json({ ...data, results });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
