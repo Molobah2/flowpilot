@@ -1,264 +1,329 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 
-const HIRO_EXPLORER = "https://explorer.hiro.so/?chain=testnet&txid=";
+const TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
+const EXPLORER = "https://explorer.hiro.so/txid/";
 
 interface VaultState {
   totalBalance: number;
   lockedBalance: number;
   unlockedBalance: number;
   lockUntilBlock: number;
-  currentBlock: number;
 }
 
-interface TxEntry {
-  tx_id: string;
-  tx_status: string;
-  block_height: number;
-  burn_block_time_iso: string;
-  tx_type: string;
-  contract_call?: { function_name: string };
+interface RoutingRules {
+  splitAddress?: string;
+  splitAmount?: number;
+  lockAmount?: number;
+  lockUntilBlock?: number;
 }
 
-function micro(n: number): string {
-  return (n / 1_000_000).toFixed(6) + " USDCx";
+function micro(n: number) {
+  return (n / 1_000_000).toFixed(6);
 }
 
-function short(addr: string): string {
-  return addr.slice(0, 8) + "…" + addr.slice(-4);
+function shortAddr(a: string) {
+  return a ? `${a.slice(0, 8)}…${a.slice(-4)}` : "—";
 }
 
-export default function Dashboard() {
-  const [address, setAddress] = useState(
-    process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? ""
+function StatRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "11px 0",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+      }}
+    >
+      <span style={{ fontSize: "13px", color: "#71717a" }}>{label}</span>
+      <span style={{ fontSize: "13px", fontWeight: 600, color: accent ?? "#f0f0f3", fontFamily: "var(--font-mono)" }}>
+        {value}
+      </span>
+    </div>
   );
-  const [inputAddr, setInputAddr] = useState(address);
-  const [vaultState, setVaultState] = useState<VaultState | null>(null);
+}
+
+export default function VaultPage() {
+  const [address, setAddress] = useState(TREASURY);
+  const [inputAddr, setInputAddr] = useState(TREASURY);
+  const [vault, setVault] = useState<VaultState | null>(null);
+  const [rules, setRules] = useState<RoutingRules | null>(null);
   const [blockHeight, setBlockHeight] = useState<number | null>(null);
-  const [txs, setTxs] = useState<TxEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!address) return;
-    load(address);
-  }, [address]);
-
-  async function load(addr: string) {
+  const load = useCallback(async (addr: string) => {
+    if (!addr) return;
     setLoading(true);
     setError(null);
     try {
-      const [vaultRes, txRes] = await Promise.all([
-        fetch(`/api/vault-state?address=${encodeURIComponent(addr)}`),
-        fetch(`/api/transactions?address=${encodeURIComponent(addr)}`),
-      ]);
-
-      if (!vaultRes.ok) throw new Error(`Vault API: ${vaultRes.status}`);
-      const vaultData = await vaultRes.json();
-      setVaultState(vaultData.state);
-      setBlockHeight(vaultData.blockHeight);
-
-      if (txRes.ok) {
-        const txData = await txRes.json();
-        setTxs(txData.results ?? []);
-      }
+      const r = await fetch(`/api/vault-state?address=${encodeURIComponent(addr)}`);
+      if (!r.ok) throw new Error(`API ${r.status}`);
+      const d = await r.json();
+      setVault(d.state);
+      setRules(d.rules);
+      setBlockHeight(d.blockHeight);
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setAddress(inputAddr.trim());
-  }
+  useEffect(() => {
+    load(address);
+  }, [address, load]);
 
-  const lockedExpired =
-    vaultState &&
-    blockHeight !== null &&
-    vaultState.lockUntilBlock > 0 &&
-    vaultState.lockUntilBlock <= blockHeight;
+  const blocksLeft =
+    vault && blockHeight && vault.lockUntilBlock > 0 && vault.lockUntilBlock > blockHeight
+      ? vault.lockUntilBlock - blockHeight
+      : 0;
+
+  const unlockedPct =
+    vault && vault.totalBalance > 0
+      ? Math.round((vault.unlockedBalance / vault.totalBalance) * 100)
+      : 0;
+
+  const lockedPct =
+    vault && vault.totalBalance > 0
+      ? Math.round((vault.lockedBalance / vault.totalBalance) * 100)
+      : 0;
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold tracking-tight mb-3">
-          <span className="text-violet-400">Vault</span> Dashboard
+    <div style={{ padding: "32px 36px", minHeight: "100vh" }}>
+      {/* Header */}
+      <div className="animate-fade-up" style={{ marginBottom: "28px" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.02em", color: "#f0f0f3", marginBottom: "6px" }}>
+          Vault State
         </h1>
-        <p className="text-zinc-400 text-sm">
-          Live state from FlowVault v2 on Stacks testnet.
+        <p style={{ fontSize: "14px", color: "#71717a" }}>
+          Live FlowVault v2 contract state on Stacks testnet
         </p>
       </div>
 
-      {/* Address input */}
-      <form onSubmit={submit} className="mb-8 flex gap-2">
-        <input
-          value={inputAddr}
-          onChange={(e) => setInputAddr(e.target.value)}
-          placeholder="ST... treasury address"
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-violet-500"
-        />
-        <button
-          type="submit"
-          className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+      {/* Address lookup */}
+      <div className="animate-fade-up-1" style={{ marginBottom: "24px" }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setAddress(inputAddr.trim());
+          }}
+          style={{ display: "flex", gap: "10px", maxWidth: "560px" }}
         >
-          Load
-        </button>
-        {address && (
+          <input
+            value={inputAddr}
+            onChange={(e) => setInputAddr(e.target.value)}
+            placeholder="ST… treasury address"
+            style={{
+              flex: 1,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              borderRadius: "10px",
+              padding: "10px 14px",
+              fontSize: "13px",
+              fontFamily: "var(--font-mono)",
+              color: "#9b9ba8",
+              outline: "none",
+            }}
+          />
           <button
-            type="button"
-            onClick={() => load(address)}
-            className="border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm transition-colors"
+            type="submit"
+            style={{
+              padding: "10px 18px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              border: "none",
+              color: "white",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(124,58,237,0.25)",
+            }}
           >
-            ↻
+            Load
           </button>
-        )}
-      </form>
+          {address && (
+            <button
+              type="button"
+              onClick={() => load(address)}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "10px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                color: "#71717a",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              ↻
+            </button>
+          )}
+        </form>
+      </div>
 
       {error && (
-        <div className="mb-6 bg-red-950/50 border border-red-800 rounded-lg px-4 py-3 text-sm text-red-400">
+        <div
+          style={{
+            padding: "12px 16px",
+            borderRadius: "10px",
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.2)",
+            color: "#f87171",
+            fontSize: "13px",
+            marginBottom: "20px",
+          }}
+        >
           {error}
         </div>
       )}
 
       {loading && (
-        <div className="text-zinc-500 text-sm mb-6 animate-pulse">
-          Loading vault state…
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="metric-card shimmer" style={{ height: "110px" }} />
+          ))}
         </div>
       )}
 
-      {vaultState && (
-        <>
-          {/* Vault state cards */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">
+      {vault && !loading && (
+        <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Balances */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+            <div className="metric-card" style={{ background: "rgba(124,58,237,0.07)", borderColor: "rgba(124,58,237,0.2)" }}>
+              <div style={{ fontSize: "11px", letterSpacing: "0.07em", textTransform: "uppercase", color: "#a78bfa", opacity: 0.8, marginBottom: "10px", fontWeight: 500 }}>
                 Total Balance
               </div>
-              <div className="text-xl font-semibold text-zinc-100">
-                {micro(vaultState.totalBalance)}
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
+                {micro(vault.totalBalance)}
               </div>
+              <div style={{ fontSize: "11px", color: "#52525b" }}>USDCx (micro-units: {vault.totalBalance.toLocaleString()})</div>
             </div>
-            <div className="bg-zinc-900 border border-emerald-800/50 rounded-lg p-4">
-              <div className="text-xs text-emerald-600 uppercase tracking-wider mb-2">
+
+            <div className="metric-card" style={{ background: "rgba(16,185,129,0.07)", borderColor: "rgba(16,185,129,0.2)" }}>
+              <div style={{ fontSize: "11px", letterSpacing: "0.07em", textTransform: "uppercase", color: "#34d399", opacity: 0.8, marginBottom: "10px", fontWeight: 500 }}>
                 Unlocked
               </div>
-              <div className="text-xl font-semibold text-emerald-400">
-                {micro(vaultState.unlockedBalance)}
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
+                {micro(vault.unlockedBalance)}
+              </div>
+              <div style={{ fontSize: "11px", color: "#52525b" }}>
+                {unlockedPct}% of total · immediately withdrawable
               </div>
             </div>
-            <div
-              className={`bg-zinc-900 border rounded-lg p-4 ${
-                lockedExpired ? "border-zinc-700" : "border-amber-800/50"
-              }`}
-            >
-              <div
-                className={`text-xs uppercase tracking-wider mb-2 ${
-                  lockedExpired ? "text-zinc-500" : "text-amber-600"
-                }`}
-              >
-                Locked
+
+            <div className="metric-card" style={{ background: "rgba(245,158,11,0.07)", borderColor: "rgba(245,158,11,0.2)" }}>
+              <div style={{ fontSize: "11px", letterSpacing: "0.07em", textTransform: "uppercase", color: "#fbbf24", opacity: 0.8, marginBottom: "10px", fontWeight: 500 }}>
+                Locked Reserve
               </div>
-              <div
-                className={`text-xl font-semibold ${
-                  lockedExpired ? "text-zinc-500" : "text-amber-400"
-                }`}
-              >
-                {micro(vaultState.lockedBalance)}
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
+                {micro(vault.lockedBalance)}
               </div>
-              {vaultState.lockUntilBlock > 0 && (
-                <div className="text-xs text-zinc-600 mt-1">
-                  until block {vaultState.lockUntilBlock}
-                  {lockedExpired ? " (released)" : ""}
-                </div>
-              )}
+              <div style={{ fontSize: "11px", color: "#52525b" }}>
+                {lockedPct}% of total
+                {blocksLeft > 0 && ` · ${blocksLeft.toLocaleString()} blocks remaining`}
+              </div>
             </div>
           </div>
 
-          {/* Block height */}
-          {blockHeight !== null && (
-            <div className="mb-8 text-xs text-zinc-600 font-mono">
-              Current block: {blockHeight}
-              {vaultState.lockUntilBlock > 0 && !lockedExpired && (
-                <span className="ml-4 text-amber-700">
-                  Lock expires in ~{vaultState.lockUntilBlock - blockHeight} blocks
-                </span>
-              )}
+          {/* Allocation bar */}
+          {vault.totalBalance > 0 && (
+            <div style={{ display: "flex", height: "8px", borderRadius: "99px", overflow: "hidden", background: "rgba(255,255,255,0.06)", gap: "2px" }}>
+              <div style={{ width: `${unlockedPct}%`, background: "#10b981", borderRadius: "99px", transition: "width 0.6s ease" }} />
+              <div style={{ width: `${lockedPct}%`, background: "#f59e0b", borderRadius: "99px", transition: "width 0.6s ease" }} />
             </div>
           )}
-        </>
-      )}
 
-      {/* Execution history from Hiro */}
-      {txs.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">
-            Recent Transactions
-          </h2>
-          <div className="space-y-2">
-            {txs.slice(0, 20).map((tx) => {
-              const fnName = tx.contract_call?.function_name;
-              const isFlowVault =
-                fnName &&
-                ["deposit", "withdraw", "set-routing-rules", "clear-routing-rules"].includes(fnName);
-              return (
-                <a
-                  key={tx.tx_id}
-                  href={`${HIRO_EXPLORER}${tx.tx_id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg px-4 py-3 transition-colors group"
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      tx.tx_status === "success"
-                        ? "bg-emerald-400"
-                        : "bg-red-400"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-zinc-300 font-mono truncate">
-                      {fnName ? (
-                        <span className={isFlowVault ? "text-violet-400" : ""}>
-                          {fnName}
-                        </span>
-                      ) : (
-                        tx.tx_type
-                      )}
-                    </div>
-                    <div className="text-xs text-zinc-600 mt-0.5">
-                      block {tx.block_height} ·{" "}
-                      {new Date(tx.burn_block_time_iso).toLocaleString()}
-                    </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            {/* Lock details */}
+            <div
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "14px",
+                padding: "20px 22px",
+              }}
+            >
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#9b9ba8", marginBottom: "4px" }}>
+                Lock Details
+              </div>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "12px" }}>
+                <StatRow label="Lock until block" value={vault.lockUntilBlock > 0 ? vault.lockUntilBlock.toLocaleString() : "Not locked"} accent={vault.lockUntilBlock > 0 ? "#fbbf24" : "#52525b"} />
+                <StatRow label="Current block" value={blockHeight?.toLocaleString() ?? "—"} />
+                <StatRow label="Blocks remaining" value={blocksLeft > 0 ? blocksLeft.toLocaleString() : "—"} accent={blocksLeft > 0 ? "#f59e0b" : "#52525b"} />
+                <StatRow label="Est. unlock" value={blocksLeft > 0 ? `~${Math.round((blocksLeft * 10) / 86400)} days` : "Available now"} accent={blocksLeft > 0 ? "#fbbf24" : "#34d399"} />
+              </div>
+            </div>
+
+            {/* Routing rules */}
+            <div
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "14px",
+                padding: "20px 22px",
+              }}
+            >
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#9b9ba8", marginBottom: "4px" }}>
+                Active Routing Slot
+              </div>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "12px" }}>
+                {rules?.splitAddress ? (
+                  <>
+                    <StatRow label="Split address" value={shortAddr(rules.splitAddress)} accent="#a78bfa" />
+                    <StatRow label="Split amount" value={rules.splitAmount ? micro(rules.splitAmount) : "—"} />
+                    <StatRow label="Lock amount" value={rules.lockAmount ? micro(rules.lockAmount) : "0"} accent="#fbbf24" />
+                    <StatRow label="Lock until block" value={rules.lockUntilBlock?.toLocaleString() ?? "—"} />
+                  </>
+                ) : (
+                  <div style={{ padding: "16px 0", textAlign: "center", color: "#3f3f50", fontSize: "13px" }}>
+                    No active routing rules
                   </div>
-                  <span className="text-xs font-mono text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0">
-                    {tx.tx_id.slice(0, 10)}… ↗
-                  </span>
-                </a>
-              );
-            })}
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Explorer link */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <a
+              href={`${EXPLORER}?chain=testnet`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "9px 16px",
+                borderRadius: "9px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                color: "#71717a",
+                fontSize: "13px",
+                textDecoration: "none",
+                transition: "all 0.15s",
+              }}
+            >
+              View on Hiro Explorer ↗
+            </a>
           </div>
         </div>
       )}
 
-      {!loading && !error && !vaultState && (
-        <div className="text-center py-16 text-zinc-600">
-          <p className="text-4xl mb-4">🏦</p>
-          <p>Enter a treasury address to load vault state</p>
+      {!loading && !vault && !error && (
+        <div style={{ textAlign: "center", padding: "64px 24px", color: "#3f3f50" }}>
+          <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔐</div>
+          <div style={{ fontSize: "15px", fontWeight: 500, marginBottom: "6px", color: "#52525b" }}>
+            Enter a treasury address
+          </div>
+          <div style={{ fontSize: "13px" }}>
+            Load real-time vault state from FlowVault v2
+          </div>
         </div>
       )}
-
-      <div className="mt-10 flex gap-4">
-        <Link
-          href="/"
-          className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-        >
-          ← Policy Builder
-        </Link>
-      </div>
     </div>
   );
 }

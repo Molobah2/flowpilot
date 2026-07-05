@@ -1,11 +1,254 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0f;
-  --foreground: #f4f4f5;
+  --bg: #050508;
+  --surface: #0c0c15;
+  --card: rgba(255, 255, 255, 0.028);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --violet: #7c3aed;
+  --violet-light: #8b5cf6;
+  --violet-dim: rgba(124, 58, 237, 0.15);
+  --green: #10b981;
+  --green-dim: rgba(16, 185, 129, 0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245, 158, 11, 0.12);
+  --text-1: #f0f0f3;
+  --text-2: #9b9ba8;
+  --text-3: #4a4a58;
 }
 
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Animations ── */
+
+@keyframes orb-a {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%     { transform: translate(-50px, 35px) scale(1.06); }
+  70%     { transform: translate(25px, -40px) scale(0.94); }
+}
+
+@keyframes orb-b {
+  0%,100% { transform: translate(0,0) scale(1); }
+  35%     { transform: translate(40px, -30px) scale(0.95); }
+  65%     { transform: translate(-30px, 45px) scale(1.05); }
+}
+
+@keyframes flow-dash {
+  to { stroke-dashoffset: -24; }
+}
+
+@keyframes flow-dash-slow {
+  to { stroke-dashoffset: -20; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.3; }
+}
+
+@keyframes count-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes border-glow {
+  0%,100% { box-shadow: 0 0 0 0 rgba(139,92,246,0); }
+  50%     { box-shadow: 0 0 20px 2px rgba(139,92,246,0.15); }
+}
+
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Animation classes ── */
+
+.orb-a { animation: orb-a 20s ease-in-out infinite; }
+.orb-b { animation: orb-b 25s ease-in-out infinite; }
+
+.flow-line      { stroke-dasharray: 6 4; animation: flow-dash 1.4s linear infinite; }
+.flow-line-slow { stroke-dasharray: 5 5; animation: flow-dash-slow 2.2s linear infinite; }
+
+.animate-fade-up         { animation: fade-up 0.45s ease forwards; }
+.animate-fade-up-1       { animation: fade-up 0.45s 0.08s ease both; }
+.animate-fade-up-2       { animation: fade-up 0.45s 0.16s ease both; }
+.animate-fade-up-3       { animation: fade-up 0.45s 0.24s ease both; }
+.animate-fade-up-4       { animation: fade-up 0.45s 0.32s ease both; }
+
+.pulse-dot { animation: pulse-dot 2.5s ease-in-out infinite; }
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.02) 0%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.02) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.slide-in { animation: slide-right 0.3s ease forwards; }
+
+/* ── Utility ── */
+
+.glass {
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-hover {
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-hover:hover {
+  background: rgba(255,255,255,0.042);
+  border-color: var(--border-strong);
+}
+
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.metric-card:hover {
+  border-color: var(--border-strong);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  color: var(--text-2);
+  position: relative;
+}
+
+.nav-item:hover {
+  color: var(--text-1);
+  background: rgba(255,255,255,0.04);
+}
+
+.nav-item.active {
+  color: #c4b5fd;
+  background: rgba(124,58,237,0.12);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: #8b5cf6;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Step wizard */
+.step-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step-done    { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.step-active  { background: rgba(124,58,237,0.25); color: #a78bfa; border: 1px solid rgba(124,58,237,0.5); animation: border-glow 2s ease-in-out infinite; }
+.step-pending { background: rgba(255,255,255,0.04); color: var(--text-3); border: 1px solid var(--border); }
+
+/* Range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  margin-top: -6px;
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.2);
+  transition: box-shadow 0.15s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 6px rgba(139,92,246,0.2);
+}
+
+/* Focus rings */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.5);
+}
+
+/* Allocation bar */
+.alloc-bar {
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
 }
