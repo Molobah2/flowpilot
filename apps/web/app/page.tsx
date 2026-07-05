@@ -374,9 +374,17 @@ export default function OperationsDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { address: walletAddr, handleConnect } = useWallet();
-  // Use connected wallet, or fall back to demo treasury
-  const address = walletAddr ?? DEMO_TREASURY;
-  const isDemo = !walletAddr;
+  const [manualAddr, setManualAddr] = useState<string | null>(null);
+  const [addrInput, setAddrInput] = useState("");
+
+  // Priority: connected wallet > manually entered > demo treasury
+  const address = walletAddr ?? manualAddr ?? DEMO_TREASURY;
+  const isDemo = !walletAddr && !manualAddr;
+
+  // When wallet connects, clear any manual override
+  useEffect(() => {
+    if (walletAddr) setManualAddr(null);
+  }, [walletAddr]);
 
   const load = useCallback(async (addr: string, silent = false) => {
     if (!addr) { setLoading(false); return; }
@@ -485,20 +493,64 @@ export default function OperationsDashboard() {
                 Testnet
               </span>
               {isDemo && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const trimmed = addrInput.trim();
+                    if (trimmed.startsWith("ST") && trimmed.length > 20) {
+                      setManualAddr(trimmed);
+                      setAddrInput("");
+                    }
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <input
+                    value={addrInput}
+                    onChange={(e) => setAddrInput(e.target.value)}
+                    placeholder="Paste ST… address to view your vault"
+                    style={{
+                      width: "260px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.09)",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      fontFamily: "var(--font-mono)",
+                      color: "#9b9ba8",
+                      outline: "none",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "4px 12px",
+                      borderRadius: "6px",
+                      background: "rgba(124,58,237,0.15)",
+                      border: "1px solid rgba(124,58,237,0.3)",
+                      color: "#a78bfa",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Load
+                  </button>
+                </form>
+              )}
+              {manualAddr && (
                 <button
-                  onClick={handleConnect}
+                  onClick={() => setManualAddr(null)}
                   style={{
-                    fontSize: "11px",
-                    color: "#a78bfa",
-                    background: "rgba(124,58,237,0.08)",
-                    border: "1px solid rgba(124,58,237,0.2)",
-                    borderRadius: "6px",
-                    padding: "3px 10px",
+                    fontSize: "10px",
+                    color: "#52525b",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    borderRadius: "5px",
+                    padding: "3px 8px",
                     cursor: "pointer",
-                    fontWeight: 500,
                   }}
                 >
-                  Demo — Connect wallet to view your vault →
+                  ← Back to demo
                 </button>
               )}
             </div>
