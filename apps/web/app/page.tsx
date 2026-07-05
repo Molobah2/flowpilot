@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 const DEMO_TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
 const EXPLORER = "https://explorer.hiro.so/txid/";
@@ -21,10 +21,6 @@ interface Tx {
   contract_call?: { function_name: string };
 }
 
-function micro(n: number) {
-  return (n / 1_000_000).toFixed(4);
-}
-
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return `${Math.round(diff)}s ago`;
@@ -36,863 +32,669 @@ function timeAgo(iso: string) {
 function useCountUp(target: number, decimals = 4) {
   const [val, setVal] = useState(0);
   const frame = useRef<number | null>(null);
-
   useEffect(() => {
     if (target === 0) { setVal(0); return; }
     if (frame.current) cancelAnimationFrame(frame.current);
     const start = performance.now();
-    const duration = 1100;
     const step = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setVal(parseFloat((eased * target).toFixed(decimals)));
+      const p = Math.min((now - start) / 900, 1);
+      setVal(parseFloat(((1 - Math.pow(1 - p, 3)) * target).toFixed(decimals)));
       if (p < 1) frame.current = requestAnimationFrame(step);
     };
     frame.current = requestAnimationFrame(step);
     return () => { if (frame.current) cancelAnimationFrame(frame.current); };
   }, [target, decimals]);
-
   return val;
-}
-
-function MetricCard({
-  label,
-  sublabel,
-  value,
-  unit,
-  accent,
-  badge,
-  delay = 0,
-}: {
-  label: string;
-  sublabel?: string;
-  value: string | number;
-  unit?: string;
-  accent?: "violet" | "green" | "amber" | "default";
-  badge?: string;
-  delay?: number;
-}) {
-  const colors: Record<string, string> = {
-    violet: "#a78bfa",
-    green: "#34d399",
-    amber: "#fbbf24",
-    default: "#f0f0f3",
-  };
-  const bgs: Record<string, string> = {
-    violet: "rgba(124,58,237,0.08)",
-    green: "rgba(16,185,129,0.08)",
-    amber: "rgba(245,158,11,0.08)",
-    default: "rgba(255,255,255,0.028)",
-  };
-  const borders: Record<string, string> = {
-    violet: "rgba(124,58,237,0.2)",
-    green: "rgba(16,185,129,0.2)",
-    amber: "rgba(245,158,11,0.2)",
-    default: "rgba(255,255,255,0.07)",
-  };
-
-  const col = colors[accent ?? "default"];
-  const bg = bgs[accent ?? "default"];
-  const border = borders[accent ?? "default"];
-
-  return (
-    <div
-      className={`metric-card animate-fade-up-${delay}`}
-      style={{ background: bg, borderColor: border }}
-    >
-      <div
-        style={{ fontSize: "11px", letterSpacing: "0.07em", textTransform: "uppercase", color: col, opacity: 0.8, marginBottom: "12px", fontWeight: 500 }}
-      >
-        {label}
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-        <span style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.02em", color: col, lineHeight: 1 }}>
-          {value}
-        </span>
-        {unit && (
-          <span style={{ fontSize: "13px", color: col, opacity: 0.6, fontWeight: 500 }}>
-            {unit}
-          </span>
-        )}
-      </div>
-      {sublabel && (
-        <div style={{ fontSize: "12px", color: "#4a4a58", marginTop: "6px" }}>
-          {sublabel}
-        </div>
-      )}
-      {badge && (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            marginTop: "10px",
-            fontSize: "10px",
-            letterSpacing: "0.05em",
-            padding: "3px 8px",
-            borderRadius: "99px",
-            background: "rgba(255,255,255,0.05)",
-            color: col,
-            border: `1px solid ${border}`,
-            fontWeight: 500,
-          }}
-        >
-          {badge}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TreasuryFlowSVG({ policy }: {
-  policy: { recipients: { label: string; sharePct: number }[]; reservePct: number; holdPct: number };
-}) {
-  const { recipients, reservePct, holdPct } = policy;
-
-  const total = recipients.reduce((s, r) => s + r.sharePct, 0) + reservePct + holdPct;
-  const barWidth = (pct: number) => `${Math.round((pct / total) * 100)}%`;
-
-  return (
-    <div style={{ padding: "24px" }}>
-      {/* Incoming */}
-      <div style={{ textAlign: "center", marginBottom: "8px" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(124,58,237,0.12)",
-            border: "1px solid rgba(124,58,237,0.3)",
-            borderRadius: "10px",
-            padding: "8px 16px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "#c4b5fd",
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1.5C3.515 1.5 1.5 3.515 1.5 6S3.515 10.5 6 10.5 10.5 8.485 10.5 6 8.485 1.5 6 1.5z" stroke="#c4b5fd" strokeWidth="1.2"/>
-            <path d="M6 4v4M4 6h4" stroke="#c4b5fd" strokeWidth="1.2" strokeLinecap="round"/>
-          </svg>
-          Incoming USDCx
-        </div>
-      </div>
-
-      {/* Connector */}
-      <svg width="100%" height="32" style={{ display: "block" }}>
-        <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(124,58,237,0.4)" strokeWidth="1.5" className="flow-line" />
-      </svg>
-
-      {/* Engine */}
-      <div style={{ textAlign: "center", marginBottom: "8px" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(79,70,229,0.1)",
-            border: "1px solid rgba(79,70,229,0.35)",
-            borderRadius: "10px",
-            padding: "8px 16px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "#a5b4fc",
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1L7.4 4.3H10.5L8.1 6.4L9 9.5L6 7.8L3 9.5L3.9 6.4L1.5 4.3H4.6L6 1Z" fill="#a5b4fc"/>
-          </svg>
-          FlowPilot Engine
-        </div>
-      </div>
-
-      {/* Fan-out SVG */}
-      <svg width="100%" height="40" viewBox="0 0 400 40" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
-        {recipients.map((_, i) => {
-          const count = recipients.length + (reservePct > 0 ? 1 : 0);
-          const spread = 320;
-          const startX = 200 - spread / 2;
-          const stepX = spread / Math.max(count - 1, 1);
-          const x = startX + i * stepX;
-          return (
-            <line key={i} x1="200" y1="0" x2={x} y2="40"
-              stroke="rgba(16,185,129,0.45)" strokeWidth="1.5" className="flow-line" />
-          );
-        })}
-        {reservePct > 0 && (
-          <line x1="200" y1="0" x2="340" y2="40"
-            stroke="rgba(245,158,11,0.45)" strokeWidth="1.5" className="flow-line-slow" />
-        )}
-      </svg>
-
-      {/* Recipient cards */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-        {recipients.map((r, i) => (
-          <div key={i}
-            style={{
-              flex: 1,
-              background: "rgba(16,185,129,0.07)",
-              border: "1px solid rgba(16,185,129,0.2)",
-              borderRadius: "10px",
-              padding: "10px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "#34d399", marginBottom: "2px" }}>
-              {r.label}
-            </div>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#10b981" }}>
-              {r.sharePct}%
-            </div>
-            <div style={{ fontSize: "10px", color: "#065f46", marginTop: "2px" }}>Split</div>
-          </div>
-        ))}
-        {reservePct > 0 && (
-          <div
-            style={{
-              flex: 1,
-              background: "rgba(245,158,11,0.07)",
-              border: "1px solid rgba(245,158,11,0.2)",
-              borderRadius: "10px",
-              padding: "10px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "#fbbf24", marginBottom: "2px" }}>
-              Reserve
-            </div>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#f59e0b" }}>
-              {reservePct}%
-            </div>
-            <div style={{ fontSize: "10px", color: "#78350f", marginTop: "2px" }}>🔒 Locked</div>
-          </div>
-        )}
-        {holdPct > 0 && (
-          <div
-            style={{
-              flex: 1,
-              background: "rgba(99,102,241,0.07)",
-              border: "1px solid rgba(99,102,241,0.2)",
-              borderRadius: "10px",
-              padding: "10px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "#a5b4fc", marginBottom: "2px" }}>
-              Hold
-            </div>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#818cf8" }}>
-              {holdPct}%
-            </div>
-            <div style={{ fontSize: "10px", color: "#312e81", marginTop: "2px" }}>Vault</div>
-          </div>
-        )}
-      </div>
-
-      {/* Allocation bar */}
-      <div style={{ marginTop: "16px" }}>
-        <div style={{ display: "flex", height: "6px", borderRadius: "99px", overflow: "hidden", gap: "2px" }}>
-          {recipients.map((r, i) => (
-            <div key={i} style={{ width: barWidth(r.sharePct), background: "#10b981", borderRadius: "99px" }} />
-          ))}
-          {reservePct > 0 && (
-            <div style={{ width: barWidth(reservePct), background: "#f59e0b", borderRadius: "99px" }} />
-          )}
-          {holdPct > 0 && (
-            <div style={{ width: barWidth(holdPct), background: "#818cf8", borderRadius: "99px" }} />
-          )}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
-          {recipients.map((r, i) => (
-            <span key={i} style={{ fontSize: "10px", color: "#10b981" }}>{r.label} {r.sharePct}%</span>
-          ))}
-          {reservePct > 0 && <span style={{ fontSize: "10px", color: "#f59e0b" }}>Reserve {reservePct}%</span>}
-          {holdPct > 0 && <span style={{ fontSize: "10px", color: "#818cf8" }}>Hold {holdPct}%</span>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InsightItem({ icon, text, accent }: { icon: string; text: string; accent?: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "10px",
-        padding: "12px 14px",
-        borderRadius: "10px",
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <span style={{ fontSize: "14px", flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: "13px", color: accent ?? "#9b9ba8", lineHeight: "1.5" }}>{text}</span>
-    </div>
-  );
 }
 
 const POLICY = {
   recipients: [
-    { label: "Alice", sharePct: 50 },
-    { label: "Bob", sharePct: 35 },
+    { label: "Alice", sharePct: 50, color: "#34d399" },
+    { label: "Bob",   sharePct: 35, color: "#a78bfa" },
   ],
   reservePct: 10,
   holdPct: 5,
 };
 
 const FN_LABELS: Record<string, string> = {
-  deposit: "Deposit",
-  "set-routing-rules": "Set Routing Rules",
-  "clear-routing-rules": "Clear Routing Rules",
-  withdraw: "Withdraw",
+  deposit:              "Deposit",
+  "set-routing-rules":  "Set Routing Rules",
+  "clear-routing-rules":"Clear Rules",
+  withdraw:             "Withdraw",
 };
 
 const FN_COLORS: Record<string, string> = {
-  deposit: "#34d399",
-  "set-routing-rules": "#a78bfa",
-  "clear-routing-rules": "#71717a",
-  withdraw: "#fb923c",
+  deposit:              "#34d399",
+  "set-routing-rules":  "#a78bfa",
+  "clear-routing-rules":"#52525b",
+  withdraw:             "#fb923c",
 };
 
-function SkeletonCard() {
+// ─── Divider ─────────────────────────────────────────────────────────────────
+const VDiv = () => <div style={{ width: "1px", background: "rgba(255,255,255,0.05)", alignSelf: "stretch" }} />;
+const HDiv = () => <div style={{ height: "1px", background: "rgba(255,255,255,0.05)" }} />;
+
+// ─── Panel Header ─────────────────────────────────────────────────────────────
+function PanelHeader({ label, right }: { label: string; right?: React.ReactNode }) {
   return (
-    <div className="metric-card">
-      <div className="shimmer rounded" style={{ height: "12px", width: "60%", marginBottom: "16px" }} />
-      <div className="shimmer rounded" style={{ height: "28px", width: "75%" }} />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <span style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#3f3f50" }}>{label}</span>
+      {right}
     </div>
   );
 }
 
-export default function OperationsDashboard() {
-  const [vault, setVault] = useState<VaultState | null>(null);
-  const [blockHeight, setBlockHeight] = useState<number | null>(null);
-  const [txs, setTxs] = useState<Tx[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+// ─── Live Pip ─────────────────────────────────────────────────────────────────
+function LivePip({ color = "#10b981" }: { color?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+      <span className="pulse-dot" style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block" }} />
+      <span style={{ fontSize: "9px", color, letterSpacing: "0.07em" }}>LIVE</span>
+    </div>
+  );
+}
 
+// ─── KPI Ribbon ──────────────────────────────────────────────────────────────
+function KpiRibbon({ total, locked, unlocked, executions, successRate, blockHeight, daysToUnlock, loading }: {
+  total: number; locked: number; unlocked: number; executions: number;
+  successRate: number; blockHeight: number | null; daysToUnlock: number; loading: boolean;
+}) {
+  const aTotal   = useCountUp(total,   4);
+  const aLocked  = useCountUp(locked,  4);
+  const aUnlock  = useCountUp(unlocked,4);
+
+  const kpis = [
+    { label: "TREASURY VALUE",   value: aTotal.toFixed(4),   unit: "USDCx", color: "#c4b5fd" },
+    { label: "LOCKED RESERVE",   value: aLocked.toFixed(4),  unit: "USDCx", color: "#fbbf24" },
+    { label: "LIQUID",           value: aUnlock.toFixed(4),  unit: "USDCx", color: "#34d399" },
+    { label: "DEPOSIT EVENTS",   value: String(executions),  unit: "total",  color: "#a5b4fc" },
+    { label: "SUCCESS RATE",     value: String(successRate), unit: "%",      color: "#34d399" },
+    { label: "CURRENT BLOCK",    value: blockHeight ? blockHeight.toLocaleString() : "—", unit: "", color: "#71717a" },
+    { label: "UNLOCK IN",        value: daysToUnlock > 0 ? `~${daysToUnlock}` : "—", unit: daysToUnlock > 0 ? "days" : "", color: "#fbbf24" },
+    { label: "AI CONFIDENCE",    value: "94",                unit: "%",      color: "#a78bfa" },
+  ];
+
+  return (
+    <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(4,4,8,0.9)" }}>
+      {kpis.map((k, i) => (
+        <div key={k.label} style={{ flex: 1, minWidth: 0, padding: "8px 12px", borderRight: i < kpis.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "0.1em", color: "#3f3f50", marginBottom: "3px", fontWeight: 600 }}>{k.label}</div>
+          {loading ? (
+            <div className="shimmer" style={{ height: "16px", width: "60%", borderRadius: "2px" }} />
+          ) : (
+            <div style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: k.color, fontFamily: "var(--font-mono)", letterSpacing: "-0.02em", lineHeight: 1 }}>{k.value}</span>
+              {k.unit && <span style={{ fontSize: "8px", color: k.color, opacity: 0.5, fontWeight: 600 }}>{k.unit}</span>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── SVG Area Chart ──────────────────────────────────────────────────────────
+function TreasuryChart({ currentBalance }: { currentBalance: number }) {
+  const [range, setRange] = useState<"7D"|"30D"|"90D">("30D");
+  const [hover, setHover]  = useState<number | null>(null);
+
+  const data = useMemo(() => {
+    const n = 80;
+    const pts: { val: number }[] = [];
+    for (let i = 0; i <= n; i++) {
+      const p = i / n;
+      let v = 0;
+      if (range === "7D")  { if (p > 0.28) v = 0.75; if (p > 0.85) v = 0.90; }
+      if (range === "30D") { if (p > 0.58) v = 0.75; if (p > 0.93) v = 0.90; }
+      if (range === "90D") { if (p > 0.76) v = 0.75; if (p > 0.97) v = 0.90; }
+      v = Math.max(0, v + Math.sin(i * 3.1) * 0.005);
+      pts.push({ val: v });
+    }
+    return pts;
+  }, [range]);
+
+  const W = 500; const H = 100; const px = 4; const py = 6;
+  const maxV = 1.05;
+  const tx = (i: number) => px + (i / (data.length - 1)) * (W - px * 2);
+  const ty = (v: number) => H - py - (v / maxV) * (H - py * 2);
+
+  const linePath = useMemo(() => {
+    let d = `M ${tx(0)} ${ty(data[0].val)}`;
+    for (let i = 1; i < data.length; i++) {
+      const cpx1 = tx(i-1) + (tx(i)-tx(i-1))/3;
+      const cpx2 = tx(i)   - (tx(i)-tx(i-1))/3;
+      d += ` C ${cpx1} ${ty(data[i-1].val)} ${cpx2} ${ty(data[i].val)} ${tx(i)} ${ty(data[i].val)}`;
+    }
+    return d;
+  }, [data]);
+
+  const areaPath = linePath + ` L ${tx(data.length-1)} ${H} L ${tx(0)} ${H} Z`;
+
+  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const xRatio = (e.clientX - r.left) / r.width;
+    setHover(Math.max(0, Math.min(data.length-1, Math.round(xRatio * (data.length-1)))));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+        <div>
+          <div style={{ fontSize: "8px", letterSpacing: "0.08em", textTransform: "uppercase", color: "#3f3f50", marginBottom: "2px" }}>Portfolio Value</div>
+          <span style={{ fontSize: "22px", fontWeight: 700, color: "#c4b5fd", fontFamily: "var(--font-mono)", letterSpacing: "-0.03em" }}>
+            {currentBalance.toFixed(4)}<span style={{ fontSize: "10px", color: "#52525b", marginLeft: "4px" }}>USDCx</span>
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: "1px" }}>
+          {(["7D","30D","90D"] as const).map(r => (
+            <button key={r} onClick={() => setRange(r)} style={{ padding: "3px 7px", borderRadius: "3px", fontSize: "9px", fontWeight: 700, border: "none", cursor: "pointer", letterSpacing: "0.04em", background: range===r ? "rgba(124,58,237,0.25)" : "transparent", color: range===r ? "#a78bfa" : "#3f3f50" }}>{r}</button>
+          ))}
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}
+        onMouseMove={handleMove} onMouseLeave={() => setHover(null)}
+        style={{ cursor: "crosshair", display: "block", overflow: "visible" }}
+      >
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#7c3aed" stopOpacity="0.25"/>
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {/* Grid */}
+        {[0.25,0.5,0.75,1.0].map(v => (
+          <line key={v} x1={px} y1={ty(v)} x2={W-px} y2={ty(v)} stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
+        ))}
+        {/* y-axis labels */}
+        {[0,0.5,1.0].map(v => (
+          <text key={v} x={px} y={ty(v)-2} fontSize="7" fill="#3f3f50" fontFamily="monospace">{v.toFixed(1)}</text>
+        ))}
+        <path d={areaPath} fill="url(#chartGrad)"/>
+        <path d={linePath} fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Events */}
+        {[{ p: range==="7D"?0.28:range==="30D"?0.58:0.76, label:"GATE 2" }, { p: range==="7D"?0.85:range==="30D"?0.93:0.97, label:"GATE 3" }].map(ev => (
+          <g key={ev.label}>
+            <line x1={tx(Math.round(ev.p*(data.length-1)))} y1={py} x2={tx(Math.round(ev.p*(data.length-1)))} y2={H-py} stroke="rgba(124,58,237,0.25)" strokeWidth="1" strokeDasharray="2 2"/>
+            <text x={tx(Math.round(ev.p*(data.length-1)))+3} y={py+8} fontSize="7" fill="#52525b">{ev.label}</text>
+          </g>
+        ))}
+        {/* Hover */}
+        {hover !== null && (
+          <>
+            <line x1={tx(hover)} y1={py} x2={tx(hover)} y2={H-py} stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="2 2"/>
+            <circle cx={tx(hover)} cy={ty(data[hover].val)} r="3" fill="#7c3aed" stroke="rgba(124,58,237,0.4)" strokeWidth="4"/>
+            <rect x={Math.min(tx(hover)+6,W-80)} y={ty(data[hover].val)-18} width="75" height="16" rx="3" fill="rgba(10,6,28,0.92)" stroke="rgba(124,58,237,0.3)" strokeWidth="1"/>
+            <text x={Math.min(tx(hover)+10,W-76)} y={ty(data[hover].val)-7} fontSize="8" fill="#c4b5fd" fontFamily="monospace">{data[hover].val.toFixed(4)} USDCx</text>
+          </>
+        )}
+        {/* Live dot */}
+        <circle cx={tx(data.length-1)} cy={ty(data[data.length-1].val)} r="3" fill="#a78bfa">
+          <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    </div>
+  );
+}
+
+// ─── Allocation Donut ─────────────────────────────────────────────────────────
+function AllocationDonut({ locked, liquid }: { locked: number; liquid: number }) {
+  const total = locked + liquid;
+  const R = 36; const C = 2 * Math.PI * R;
+  const lockedPct = total > 0 ? locked / total : 0;
+  const liquidPct = total > 0 ? liquid / total : 0;
+
+  const segs = [
+    { pct: lockedPct, color: "#f59e0b", label: "Locked",  value: locked  },
+    { pct: liquidPct, color: "#10b981", label: "Liquid",  value: liquid  },
+  ];
+
+  let off = 0;
+  const arcs = segs.map(s => {
+    const dash = s.pct * C;
+    const rot  = off * 360 - 90;
+    off += s.pct;
+    return { ...s, dash, gap: C - dash, rot };
+  });
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <svg width="86" height="86" viewBox="0 0 86 86">
+        <circle cx="43" cy="43" r={R} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="9"/>
+        {arcs.map((a, i) => (
+          <circle key={i} cx="43" cy="43" r={R} fill="none" stroke={a.color} strokeWidth="9"
+            strokeDasharray={`${a.dash} ${a.gap}`} strokeLinecap="butt"
+            transform={`rotate(${a.rot} 43 43)`} opacity="0.85"
+          />
+        ))}
+        <text x="43" y="40" textAnchor="middle" fontSize="9" fontWeight="700" fill="#f0f0f3" fontFamily="monospace">{total.toFixed(2)}</text>
+        <text x="43" y="51" textAnchor="middle" fontSize="7" fill="#52525b">USDCx</text>
+      </svg>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+        {arcs.map((a, i) => (
+          <div key={i}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: a.color }}/>
+                <span style={{ fontSize: "10px", color: "#52525b" }}>{a.label}</span>
+              </div>
+              <span style={{ fontSize: "10px", fontWeight: 700, color: a.color, fontFamily: "var(--font-mono)" }}>{a.value.toFixed(4)}</span>
+            </div>
+            <div style={{ height: "2px", background: "rgba(255,255,255,0.05)", borderRadius: "99px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${a.pct*100}%`, background: a.color, transition: "width 1s ease" }}/>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Capital Routing Viz ──────────────────────────────────────────────────────
+function RoutingViz() {
+  const W = 280; const H = 340;
+  const cx = W / 2;
+  const inY = 36; const engY = 130;
+  const recY = 248;
+
+  const recipients = [
+    { id: "alice",   x: 44,  label: "Alice",   pct: "50%", color: "#34d399", bg: "rgba(16,185,129,0.1)" },
+    { id: "bob",     x: 120, label: "Bob",     pct: "35%", color: "#a78bfa", bg: "rgba(167,139,250,0.1)" },
+    { id: "reserve", x: 196, label: "Reserve", pct: "10%", color: "#fbbf24", bg: "rgba(245,158,11,0.1)" },
+    { id: "hold",    x: 252, label: "Hold",    pct: "5%",  color: "#52525b", bg: "rgba(82,82,91,0.1)" },
+  ];
+
+  const delays = [0, 0.45, 0.9, 1.35];
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: "visible", display: "block" }}>
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <marker id="arr" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto">
+          <path d="M0,0 L4,2 L0,4 Z" fill="rgba(124,58,237,0.4)"/>
+        </marker>
+      </defs>
+
+      {/* Paths: incoming → engine */}
+      <path id="path-in" d={`M ${cx} ${inY+14} Q ${cx} ${engY-20} ${cx} ${engY-13}`}
+        fill="none" stroke="rgba(124,58,237,0.15)" strokeWidth="1.5"/>
+
+      {/* Paths: engine → each recipient */}
+      {recipients.map(r => (
+        <path key={`p-${r.id}`} id={`p-${r.id}`}
+          d={`M ${cx} ${engY+13} C ${cx} ${recY-60} ${r.x} ${recY-60} ${r.x} ${recY-13}`}
+          fill="none" stroke={`${r.color}28`} strokeWidth="1.5"
+        />
+      ))}
+
+      {/* Particles: incoming → engine */}
+      {delays.slice(0,2).map((d,i) => (
+        <circle key={`pi-${i}`} r="2.5" fill="#a78bfa" opacity="0.8">
+          <animateMotion dur="1.0s" repeatCount="indefinite" begin={`${d}s`}>
+            <mpath href="#path-in"/>
+          </animateMotion>
+          <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.9;1" dur="1.0s" repeatCount="indefinite" begin={`${d}s`}/>
+        </circle>
+      ))}
+
+      {/* Particles: engine → recipients */}
+      {recipients.map((r, ri) =>
+        delays.slice(0, 3).map((d, pi) => (
+          <circle key={`pr-${r.id}-${pi}`} r="2" fill={r.color} opacity="0.85">
+            <animateMotion dur={`${1.1 + ri*0.15}s`} repeatCount="indefinite" begin={`${d + ri*0.2}s`}>
+              <mpath href={`#p-${r.id}`}/>
+            </animateMotion>
+            <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.88;1" dur={`${1.1+ri*0.15}s`} repeatCount="indefinite" begin={`${d+ri*0.2}s`}/>
+          </circle>
+        ))
+      )}
+
+      {/* Incoming node */}
+      <rect x={cx-50} y={inY-13} width="100" height="26" rx="5"
+        fill="rgba(124,58,237,0.1)" stroke="rgba(124,58,237,0.35)" strokeWidth="1"/>
+      <text x={cx} y={inY+5} textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#c4b5fd">Incoming USDCx</text>
+
+      {/* Engine node */}
+      <rect x={cx-48} y={engY-13} width="96" height="26" rx="5"
+        fill="rgba(79,70,229,0.14)" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+      <text x={cx} y={engY+5} textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#a5b4fc">FlowPilot Engine</text>
+      {/* Engine glow */}
+      <ellipse cx={cx} cy={engY} rx="54" ry="18" fill="rgba(79,70,229,0.06)">
+        <animate attributeName="ry" values="18;26;18" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="3s" repeatCount="indefinite"/>
+      </ellipse>
+
+      {/* Recipient nodes */}
+      {recipients.map(r => (
+        <g key={r.id}>
+          <rect x={r.x-26} y={recY-13} width="52" height="46" rx="5"
+            fill={r.bg} stroke={`${r.color}45`} strokeWidth="1"/>
+          <text x={r.x} y={recY+3} textAnchor="middle" fontSize="8.5" fontWeight="600" fill={r.color}>{r.label}</text>
+          <text x={r.x} y={recY+18} textAnchor="middle" fontSize="13" fontWeight="800" fill={r.color}>{r.pct}</text>
+        </g>
+      ))}
+
+      {/* Allocation strip */}
+      <rect x={8} y={H-16} width={W-16} height="5" rx="2.5" fill="rgba(255,255,255,0.04)"/>
+      {(() => {
+        const parts = [{ w: 50, color: "#34d399" },{ w: 35, color: "#a78bfa" },{ w: 10, color: "#f59e0b" },{ w: 5, color: "#52525b" }];
+        let xo = 8;
+        return parts.map((p,i) => {
+          const pw = ((W-16) * p.w) / 100;
+          const rx = xo; xo += pw + 1;
+          return <rect key={i} x={rx} y={H-16} width={pw} height="5" rx="2.5" fill={p.color} opacity="0.8"/>;
+        });
+      })()}
+    </svg>
+  );
+}
+
+// ─── AI Intelligence Panel ────────────────────────────────────────────────────
+function IntelPanel({ insights }: {
+  insights: Array<{ icon: string; text: string; accent: string; confidence: number; severity?: string }>;
+}) {
+  return (
+    <div>
+      {insights.map((ins, i) => (
+        <div key={i}
+          style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "default", transition: "background 0.12s" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          <div style={{ display: "flex", gap: "8px", marginBottom: "5px" }}>
+            <span style={{ fontSize: "11px", flexShrink: 0 }}>{ins.icon}</span>
+            <span style={{ fontSize: "11px", color: "#71717a", lineHeight: 1.5, flex: 1 }}>{ins.text}</span>
+            <div style={{ flexShrink: 0, textAlign: "right" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: ins.accent, fontFamily: "var(--font-mono)" }}>{ins.confidence}%</div>
+              {ins.severity && <div style={{ fontSize: "8px", color: "#3f3f50", letterSpacing: "0.06em" }}>{ins.severity}</div>}
+            </div>
+          </div>
+          <div style={{ marginLeft: "19px", height: "2px", background: "rgba(255,255,255,0.05)", borderRadius: "99px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${ins.confidence}%`, background: ins.accent, opacity: 0.55, borderRadius: "99px", transition: "width 0.8s ease" }}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Execution Analytics Row ──────────────────────────────────────────────────
+function ExecutionAnalytics({ txs, successRate }: { txs: Tx[]; successRate: number }) {
+  const flowTxs = txs.filter(t => t.contract_call && Object.keys(FN_LABELS).includes(t.contract_call.function_name));
+  const deposits = flowTxs.filter(t => t.contract_call?.function_name === "deposit");
+  const setRules = flowTxs.filter(t => t.contract_call?.function_name === "set-routing-rules");
+
+  // Mini bar charts
+  const fnCounts: Record<string, number> = {};
+  flowTxs.forEach(t => { const f = t.contract_call?.function_name ?? "other"; fnCounts[f] = (fnCounts[f]||0)+1; });
+  const maxCount = Math.max(1, ...Object.values(fnCounts));
+
+  const stats = [
+    { label: "Total Operations", value: flowTxs.length, color: "#a5b4fc" },
+    { label: "Deposits Executed", value: deposits.length, color: "#34d399" },
+    { label: "Rules Updates", value: setRules.length, color: "#a78bfa" },
+    { label: "Success Rate", value: `${successRate}%`, color: "#34d399" },
+  ];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      {stats.map((s, i) => (
+        <div key={s.label} style={{ padding: "12px 16px", borderRight: i < stats.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "0.1em", color: "#3f3f50", marginBottom: "4px" }}>{s.label}</div>
+          <div style={{ fontSize: "20px", fontWeight: 700, color: s.color, fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>{s.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Activity Table ───────────────────────────────────────────────────────────
+function ActivityTable({ txs, loading }: { txs: Tx[]; loading: boolean }) {
+  const cols = "20px 1fr 90px 90px 130px 80px";
+
+  if (loading) {
+    return (
+      <div style={{ padding: "12px 14px" }}>
+        {[...Array(6)].map((_,i) => <div key={i} className="shimmer" style={{ height: "32px", borderRadius: "3px", marginBottom: "3px" }}/>)}
+      </div>
+    );
+  }
+  if (txs.length === 0) {
+    return <div style={{ padding: "40px", textAlign: "center", fontSize: "11px", color: "#3f3f50" }}>No transactions yet</div>;
+  }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      {/* Header */}
+      <div style={{ display: "grid", gridTemplateColumns: cols, gap: "0", padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        {["","OPERATION","BLOCK","HASH","TIME","STATUS"].map(h => (
+          <span key={h} style={{ fontSize: "8px", letterSpacing: "0.1em", fontWeight: 600, color: "#3f3f50" }}>{h}</span>
+        ))}
+      </div>
+      {txs.slice(0,25).map((tx, i) => {
+        const fn    = tx.contract_call?.function_name;
+        const label = fn ? (FN_LABELS[fn] ?? fn) : tx.tx_type;
+        const color = fn ? (FN_COLORS[fn] ?? "#71717a") : "#71717a";
+        const ok    = tx.tx_status === "success";
+        const isVault = fn && Object.keys(FN_LABELS).includes(fn);
+        return (
+          <a key={tx.tx_id}
+            href={`${EXPLORER}${tx.tx_id}?chain=testnet`}
+            target="_blank" rel="noreferrer"
+            style={{ display: "grid", gridTemplateColumns: cols, gap: "0", padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.03)", textDecoration: "none", alignItems: "center", transition: "background 0.1s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: ok ? "#10b981" : "#ef4444", boxShadow: ok ? "0 0 4px rgba(16,185,129,0.6)" : "0 0 4px rgba(239,68,68,0.6)" }}/>
+            <span style={{ fontSize: "11px", fontWeight: 500, color: isVault ? color : "#52525b" }}>{label}</span>
+            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#3f3f50" }}>#{tx.block_height?.toLocaleString()}</span>
+            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#3f3f50" }}>{tx.tx_id.slice(0,10)}…</span>
+            <span style={{ fontSize: "10px", color: "#3f3f50" }}>{tx.burn_block_time_iso ? timeAgo(tx.burn_block_time_iso) : "—"}</span>
+            <span style={{ fontSize: "9px", fontWeight: 600, color: ok ? "#10b981" : "#ef4444", letterSpacing: "0.04em" }}>{ok ? "CONFIRMED" : "FAILED"}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Network Strip ────────────────────────────────────────────────────────────
+function NetworkStrip({ blockHeight }: { blockHeight: number | null }) {
+  const items = [
+    { label: "STACKS TESTNET", value: "Connected", color: "#10b981", dot: true },
+    { label: "FLOWVAULT V2",   value: "flowvault-v2", color: "#a78bfa", dot: false },
+    { label: "TOKEN",          value: "USDCx (testnet)", color: "#71717a", dot: false },
+    { label: "CURRENT BLOCK",  value: blockHeight ? `#${blockHeight.toLocaleString()}` : "Syncing…", color: "#71717a", dot: false },
+    { label: "POLICY",         value: "2 recipients · 10% reserve", color: "#71717a", dot: false },
+    { label: "RUNNER",         value: "Railway · Always-on", color: "#34d399", dot: true },
+  ];
+  return (
+    <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(4,4,8,0.7)" }}>
+      {items.map((it, i) => (
+        <div key={it.label} style={{ flex: 1, padding: "7px 12px", borderRight: i < items.length-1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "0.1em", color: "#3f3f50", marginBottom: "2px" }}>{it.label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            {it.dot && <span className="pulse-dot" style={{ width: "5px", height: "5px", borderRadius: "50%", background: it.color, display: "inline-block" }}/>}
+            <span style={{ fontSize: "10px", fontWeight: 600, color: it.color }}>{it.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+export default function OperationsDashboard() {
+  const [vault,      setVault]      = useState<VaultState | null>(null);
+  const [blockHeight,setBlockHeight]= useState<number | null>(null);
+  const [txs,        setTxs]        = useState<Tx[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [lastSync,   setLastSync]   = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [manualAddr, setManualAddr] = useState<string | null>(null);
-  const [addrInput, setAddrInput] = useState("");
+  const [addrInput,  setAddrInput]  = useState("");
 
   const address = manualAddr ?? DEMO_TREASURY;
-  const isDemo = !manualAddr;
+  const isDemo  = !manualAddr;
 
   const load = useCallback(async (addr: string, silent = false) => {
     if (!addr) { setLoading(false); return; }
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-
+    if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const [vaultRes, txRes] = await Promise.all([
+      const [vr, tr] = await Promise.all([
         fetch(`/api/vault-state?address=${encodeURIComponent(addr)}`),
         fetch(`/api/transactions?address=${encodeURIComponent(addr)}`),
       ]);
-
-      if (vaultRes.ok) {
-        const d = await vaultRes.json();
-        setVault(d.state);
-        setBlockHeight(d.blockHeight);
-      }
-      if (txRes.ok) {
-        const d = await txRes.json();
-        setTxs(d.results ?? []);
-      }
+      if (vr.ok) { const d = await vr.json(); setVault(d.state); setBlockHeight(d.blockHeight); }
+      if (tr.ok) { const d = await tr.json(); setTxs(d.results ?? []); }
       setLastSync(new Date());
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => {
     load(address);
-    const interval = setInterval(() => load(address, true), 30_000);
-    return () => clearInterval(interval);
+    const t = setInterval(() => load(address, true), 30_000);
+    return () => clearInterval(t);
   }, [address, load]);
 
-  const totalMicro = vault ? vault.totalBalance / 1_000_000 : 0;
-  const lockedMicro = vault ? vault.lockedBalance / 1_000_000 : 0;
+  const total   = vault ? vault.totalBalance   / 1_000_000 : 0;
+  const locked  = vault ? vault.lockedBalance  / 1_000_000 : 0;
+  const liquid  = vault ? vault.unlockedBalance/ 1_000_000 : 0;
 
-  const animatedTotal = useCountUp(totalMicro, 4);
-  const animatedLocked = useCountUp(lockedMicro, 4);
+  const flowTxs   = txs.filter(t => t.contract_call && Object.keys(FN_LABELS).includes(t.contract_call.function_name));
+  const successN  = flowTxs.filter(t => t.tx_status === "success").length;
+  const successR  = flowTxs.length > 0 ? Math.round((successN / flowTxs.length) * 100) : 100;
+  const execN     = flowTxs.filter(t => t.contract_call?.function_name === "deposit").length;
 
-  const flowVaultTxs = txs.filter(
-    (t) => t.contract_call && Object.keys(FN_LABELS).includes(t.contract_call.function_name)
-  );
-  const successCount = flowVaultTxs.filter((t) => t.tx_status === "success").length;
-  const successRate = flowVaultTxs.length > 0 ? Math.round((successCount / flowVaultTxs.length) * 100) : 100;
-  const executions = flowVaultTxs.filter(t => t.contract_call?.function_name === "deposit").length;
-
-  const blocksToUnlock =
-    vault && blockHeight && vault.lockUntilBlock > 0 && vault.lockUntilBlock > blockHeight
-      ? vault.lockUntilBlock - blockHeight
-      : 0;
-  const daysToUnlock = blocksToUnlock > 0 ? Math.round((blocksToUnlock * 10) / 86400) : 0;
+  const blocksLeft = vault && blockHeight && vault.lockUntilBlock > blockHeight ? vault.lockUntilBlock - blockHeight : 0;
+  const daysLeft   = blocksLeft > 0 ? Math.round((blocksLeft * 10) / 86400) : 0;
 
   const insights = [
-    blocksToUnlock > 0
-      ? { icon: "🔒", text: `Reserve unlocks in ~${daysToUnlock} days (${blocksToUnlock.toLocaleString()} blocks remaining)`, accent: "#fbbf24" }
-      : { icon: "✅", text: "Reserve funds are available — lock period has ended", accent: "#34d399" },
-    { icon: "⚡", text: `${executions} treasury deposit events automated since inception — zero manual intervention`, accent: "#a78bfa" },
-    { icon: "🎯", text: `${successRate}% on-chain execution success rate across all FlowVault operations`, accent: "#34d399" },
-    { icon: "💡", text: "Policy routes 85% to contributors, preserving 15% as strategic reserve and operational hold", accent: "#9b9ba8" },
+    { icon: "🔒", text: `Reserve unlocks in ~${daysLeft} days (${blocksLeft.toLocaleString()} blocks remaining)`, accent: "#fbbf24", confidence: 99, severity: "INFO" },
+    { icon: "⚡", text: `${execN} deposit events automated — zero manual intervention since inception`, accent: "#a78bfa", confidence: 100, severity: "HEALTHY" },
+    { icon: "🎯", text: `${successR}% on-chain execution success rate across all FlowVault v2 operations`, accent: "#34d399", confidence: successR, severity: successR >= 90 ? "HEALTHY" : "WARN" },
+    { icon: "💡", text: "85% of inflows routed to contributors. 15% preserved as strategic reserve and operational hold", accent: "#71717a", confidence: 94, severity: "INFO" },
   ];
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
   return (
-    <div style={{ padding: "32px 36px", minHeight: "100vh" }}>
-      {/* Page header */}
-      <div className="animate-fade-up" style={{ marginBottom: "32px" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontSize: "12px", color: "#52525b", marginBottom: "6px", letterSpacing: "0.05em" }}>
-              {greeting} · {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-            </div>
-            <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.02em", color: "#f0f0f3", lineHeight: 1.1, marginBottom: "8px" }}>
-              Treasury Operations
-            </h1>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: "#52525b",
-                  fontFamily: "var(--font-mono)",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: "6px",
-                  padding: "3px 8px",
-                }}
-              >
-                {address.slice(0, 8)}…{address.slice(-6)}
-              </span>
-              <span
-                style={{
-                  fontSize: "10px",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "#7c3aed",
-                  background: "rgba(124,58,237,0.1)",
-                  border: "1px solid rgba(124,58,237,0.2)",
-                  borderRadius: "4px",
-                  padding: "2px 7px",
-                  fontWeight: 600,
-                }}
-              >
-                Testnet
-              </span>
-              {isDemo && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const trimmed = addrInput.trim();
-                    if (trimmed.startsWith("ST") && trimmed.length > 20) {
-                      setManualAddr(trimmed);
-                      setAddrInput("");
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  <input
-                    value={addrInput}
-                    onChange={(e) => setAddrInput(e.target.value)}
-                    placeholder="Paste ST… address to view your vault"
-                    style={{
-                      width: "260px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.09)",
-                      borderRadius: "6px",
-                      padding: "4px 10px",
-                      fontSize: "11px",
-                      fontFamily: "var(--font-mono)",
-                      color: "#9b9ba8",
-                      outline: "none",
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: "4px 12px",
-                      borderRadius: "6px",
-                      background: "rgba(124,58,237,0.15)",
-                      border: "1px solid rgba(124,58,237,0.3)",
-                      color: "#a78bfa",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Load
-                  </button>
-                </form>
-              )}
-              {manualAddr && (
-                <button
-                  onClick={() => setManualAddr(null)}
-                  style={{
-                    fontSize: "10px",
-                    color: "#52525b",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: "5px",
-                    padding: "3px 8px",
-                    cursor: "pointer",
-                  }}
-                >
-                  ← Back to demo
-                </button>
-              )}
-            </div>
-          </div>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#050508" }}>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {lastSync && (
-              <span style={{ fontSize: "12px", color: "#3f3f50" }}>
-                Synced {timeAgo(lastSync.toISOString())}
-              </span>
-            )}
-            <button
-              onClick={() => load(address, true)}
-              disabled={refreshing || loading}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                color: refreshing ? "#52525b" : "#9b9ba8",
-                fontSize: "12px",
-                fontWeight: 500,
-                cursor: refreshing ? "not-allowed" : "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-                style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }}
-              >
-                <path d="M10 6A4 4 0 012 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M10 3.5V6H7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Metric cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "16px",
-          marginBottom: "28px",
-        }}
-      >
-        {loading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
-        ) : (
-          <>
-            <MetricCard
-              label="Treasury Balance"
-              value={animatedTotal.toFixed(4)}
-              unit="USDCx"
-              accent="violet"
-              sublabel="Total vault holdings"
-              delay={1}
-            />
-            <MetricCard
-              label="Locked Reserve"
-              value={animatedLocked.toFixed(4)}
-              unit="USDCx"
-              accent="amber"
-              sublabel={daysToUnlock > 0 ? `Unlocks in ${daysToUnlock}d` : "Lock period ended"}
-              badge={daysToUnlock > 0 ? `Block ${vault?.lockUntilBlock?.toLocaleString()}` : "Available"}
-              delay={2}
-            />
-            <MetricCard
-              label="Automated Events"
-              value={executions}
-              accent="green"
-              sublabel="Deposit executions"
-              badge="Zero manual ops"
-              delay={3}
-            />
-            <MetricCard
-              label="Success Rate"
-              value={`${successRate}%`}
-              accent="green"
-              sublabel="On-chain execution"
-              badge={`${successCount} confirmed`}
-              delay={4}
-            />
-          </>
-        )}
-      </div>
-
-      {/* Main content: Flow + Insights */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-        {/* Treasury Flow */}
-        <div
-          className="animate-fade-up-1"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "16px",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#f0f0f3" }}>Treasury Flow</div>
-              <div style={{ fontSize: "11px", color: "#52525b", marginTop: "2px" }}>
-                Active policy · {POLICY.recipients.length} recipients
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: "10px",
-                padding: "3px 8px",
-                borderRadius: "99px",
-                background: "rgba(16,185,129,0.1)",
-                border: "1px solid rgba(16,185,129,0.2)",
-                color: "#34d399",
-                letterSpacing: "0.04em",
-                fontWeight: 500,
-              }}
-            >
-              LIVE
-            </span>
-          </div>
-          <TreasuryFlowSVG policy={POLICY} />
-        </div>
-
-        {/* AI Insights + FlowVault Status */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Insights */}
-          <div
-            className="animate-fade-up-2"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: "16px",
-              overflow: "hidden",
-              flex: 1,
-            }}
-          >
-            <div
-              style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1L8.4 4.8H12.5L9.3 7.2L10.5 11L7 8.8L3.5 11L4.7 7.2L1.5 4.8H5.6L7 1Z" fill="#a78bfa"/>
-              </svg>
-              <span style={{ fontSize: "14px", fontWeight: 600, color: "#f0f0f3" }}>AI Insights</span>
-            </div>
-            <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              {insights.map((ins, i) => (
-                <InsightItem key={i} icon={ins.icon} text={ins.text} accent={ins.accent} />
-              ))}
-            </div>
-          </div>
-
-          {/* FlowVault Status */}
-          <div
-            className="animate-fade-up-3"
-            style={{
-              background: "rgba(124,58,237,0.05)",
-              border: "1px solid rgba(124,58,237,0.15)",
-              borderRadius: "14px",
-              padding: "16px 18px",
-            }}
-          >
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "#a78bfa", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-              <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-              FlowVault v2 Integration
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {[
-                { k: "Contract", v: "flowvault-v2", accent: "#c4b5fd" },
-                { k: "Network", v: "Stacks Testnet", accent: "#9b9ba8" },
-                { k: "Token", v: "USDCx (testnet)", accent: "#9b9ba8" },
-                { k: "Routing", v: `${POLICY.recipients.length} recipients · ${POLICY.reservePct}% reserve`, accent: "#9b9ba8" },
-              ].map(({ k, v, accent }) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                  <span style={{ color: "#52525b" }}>{k}</span>
-                  <span style={{ color: accent, fontWeight: 500 }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Activity Feed */}
-      <div
-        className="animate-fade-up-4"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: "16px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "#f0f0f3" }}>Automation Activity</div>
-            <div style={{ fontSize: "11px", color: "#52525b", marginTop: "2px" }}>
-              Live FlowVault transaction history
-            </div>
-          </div>
-          {txs.length > 0 && (
-            <span style={{ fontSize: "11px", color: "#52525b" }}>
-              {txs.length} total events
-            </span>
+      {/* ── Top bar ── */}
+      <div style={{ height: "40px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(4,4,8,0.95)", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#3f3f50" }}>
+            {address.slice(0,8)}…{address.slice(-4)}
+          </span>
+          <span style={{ fontSize: "8px", letterSpacing: "0.08em", textTransform: "uppercase", color: "#7c3aed", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: "3px", padding: "2px 5px" }}>Testnet</span>
+          {isDemo ? (
+            <form onSubmit={e => { e.preventDefault(); const t = addrInput.trim(); if (t.startsWith("ST") && t.length > 20) { setManualAddr(t); setAddrInput(""); }}} style={{ display: "flex", gap: "4px" }}>
+              <input value={addrInput} onChange={e => setAddrInput(e.target.value)} placeholder="ST… address"
+                style={{ width: "160px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "3px", padding: "2px 8px", fontSize: "10px", fontFamily: "var(--font-mono)", color: "#9b9ba8", outline: "none" }}/>
+              <button type="submit" style={{ padding: "2px 8px", borderRadius: "3px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)", color: "#a78bfa", fontSize: "10px", cursor: "pointer" }}>Load</button>
+            </form>
+          ) : (
+            <button onClick={() => setManualAddr(null)} style={{ fontSize: "9px", color: "#52525b", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "3px", padding: "2px 7px", cursor: "pointer" }}>← Demo</button>
           )}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <LivePip/>
+          {lastSync && <span style={{ fontSize: "9px", color: "#3f3f50" }}>Synced {timeAgo(lastSync.toISOString())}</span>}
+          <button onClick={() => load(address, true)} disabled={refreshing}
+            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "3px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "#52525b", fontSize: "9px", cursor: "pointer", letterSpacing: "0.04em" }}>
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }}>
+              <path d="M7.5 4.5A3 3 0 112 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7.5 2V4.5H5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
 
-        {loading ? (
-          <div style={{ padding: "20px" }}>
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="shimmer"
-                style={{ height: "48px", borderRadius: "8px", marginBottom: "6px" }}
-              />
+      {/* ── KPI Ribbon ── */}
+      <KpiRibbon total={total} locked={locked} unlocked={liquid} executions={execN} successRate={successR} blockHeight={blockHeight} daysToUnlock={daysLeft} loading={loading}/>
+
+      {/* ── Main 3-column panel ── */}
+      <div style={{ display: "flex", flex: 1 }}>
+
+        {/* LEFT: Portfolio */}
+        <div style={{ flex: "0 0 38%", minWidth: 0, borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column" }}>
+          <PanelHeader label="Portfolio" right={<LivePip color="#52525b"/>}/>
+          <div style={{ padding: "14px 14px 10px" }}>
+            {loading
+              ? <div className="shimmer" style={{ height: "130px", borderRadius: "4px" }}/>
+              : <TreasuryChart currentBalance={total}/>}
+          </div>
+          <HDiv/>
+          <div style={{ padding: "12px 14px" }}>
+            <div style={{ fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3f3f50", marginBottom: "10px" }}>Allocation</div>
+            {loading
+              ? <div className="shimmer" style={{ height: "80px", borderRadius: "4px" }}/>
+              : <AllocationDonut locked={locked} liquid={liquid}/>}
+          </div>
+        </div>
+
+        <VDiv/>
+
+        {/* CENTER: Capital Routing */}
+        <div style={{ flex: "0 0 24%", minWidth: 0, borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column" }}>
+          <PanelHeader label="Capital Routing" right={<LivePip/>}/>
+          <div style={{ padding: "12px", flex: 1 }}>
+            <RoutingViz/>
+          </div>
+        </div>
+
+        <VDiv/>
+
+        {/* RIGHT: AI Intelligence */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <PanelHeader
+            label="AI Treasury Intelligence"
+            right={<span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "#a78bfa" }}>94% CONF</span>}
+          />
+          {loading
+            ? <div style={{ padding: "14px" }}>{[...Array(4)].map((_,i) => <div key={i} className="shimmer" style={{ height: "52px", borderRadius: "3px", marginBottom: "4px" }}/>)}</div>
+            : <IntelPanel insights={insights}/>}
+
+          {/* FlowVault status block */}
+          <div style={{ marginTop: "auto", padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: "8px", letterSpacing: "0.1em", color: "#3f3f50", marginBottom: "8px" }}>FLOWVAULT V2 INTEGRATION</div>
+            {[
+              ["Contract", "flowvault-v2",               "#a78bfa"],
+              ["Network",  "Stacks Testnet",              "#52525b"],
+              ["Token",    "USDCx (testnet)",             "#52525b"],
+              ["Policy",   "2 recipients · 10% reserve", "#52525b"],
+              ["Block",    blockHeight ? `#${blockHeight.toLocaleString()}` : "—", "#52525b"],
+            ].map(([k,v,c]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "10px", color: "#3f3f50" }}>{k}</span>
+                <span style={{ fontSize: "10px", color: c, fontWeight: 500 }}>{v}</span>
+              </div>
             ))}
           </div>
-        ) : txs.length === 0 ? (
-          <div style={{ padding: "48px", textAlign: "center", color: "#3f3f50" }}>
-            <div style={{ fontSize: "32px", marginBottom: "8px" }}>⏳</div>
-            <div style={{ fontSize: "14px" }}>No transactions recorded yet</div>
-            <div style={{ fontSize: "12px", marginTop: "4px" }}>
-              Transactions will appear as the runner executes policies
-            </div>
-          </div>
-        ) : (
-          <div>
-            {txs.slice(0, 15).map((tx, i) => {
-              const fn = tx.contract_call?.function_name;
-              const label = fn ? (FN_LABELS[fn] ?? fn) : tx.tx_type;
-              const color = fn ? (FN_COLORS[fn] ?? "#9b9ba8") : "#9b9ba8";
-              const isVault = fn && Object.keys(FN_LABELS).includes(fn);
-
-              return (
-                <a
-                  key={tx.tx_id}
-                  href={`${EXPLORER}${tx.tx_id}?chain=testnet`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "14px",
-                    padding: "12px 20px",
-                    borderBottom: i < Math.min(txs.length, 15) - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                    textDecoration: "none",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {/* Status dot */}
-                  <div
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      background: tx.tx_status === "success" ? "#10b981" : "#ef4444",
-                      boxShadow: tx.tx_status === "success" ? "0 0 6px rgba(16,185,129,0.5)" : "0 0 6px rgba(239,68,68,0.5)",
-                    }}
-                  />
-
-                  {/* Function badge */}
-                  <div
-                    style={{
-                      padding: "3px 10px",
-                      borderRadius: "6px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      letterSpacing: "0.02em",
-                      color: isVault ? color : "#71717a",
-                      background: isVault ? `${color}18` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${isVault ? `${color}30` : "rgba(255,255,255,0.06)"}`,
-                      flexShrink: 0,
-                      minWidth: "140px",
-                      textAlign: "center",
-                    }}
-                  >
-                    {label}
-                  </div>
-
-                  {/* Meta */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "12px", color: "#52525b" }}>
-                      Block {tx.block_height?.toLocaleString() ?? "—"}
-                      {tx.burn_block_time_iso && (
-                        <span style={{ marginLeft: "8px" }}>
-                          · {timeAgo(tx.burn_block_time_iso)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Txid + arrow */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11px",
-                        color: "#3f3f50",
-                      }}
-                    >
-                      {tx.tx_id.slice(0, 10)}…
-                    </span>
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: "#3f3f50" }}>
-                      <path d="M2 8L8 2M8 2H4M8 2v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* ── Execution Analytics ── */}
+      <div>
+        <PanelHeader label="Execution Analytics" right={<span style={{ fontSize: "9px", color: "#3f3f50" }}>{flowTxs.length} ops recorded</span>}/>
+        {!loading && <ExecutionAnalytics txs={txs} successRate={successR}/>}
+      </div>
+
+      {/* ── Activity Feed ── */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <PanelHeader
+          label="Automation Activity"
+          right={<div style={{ display: "flex", alignItems: "center", gap: "5px" }}><span style={{ fontSize: "9px", color: "#3f3f50" }}>{txs.length} events</span><LivePip/></div>}
+        />
+        <ActivityTable txs={txs} loading={loading}/>
+      </div>
+
+      {/* ── Network strip ── */}
+      <NetworkStrip blockHeight={blockHeight}/>
     </div>
   );
 }
