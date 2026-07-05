@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useWallet } from "./WalletContext";
 
 const NAV = [
   {
@@ -45,7 +44,6 @@ const NAV = [
 
 export function Sidebar() {
   const path = usePathname();
-  const { address, connecting, error, handleConnect, handleDisconnect } = useWallet();
 
   return (
     <aside
@@ -117,108 +115,6 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="p-4 space-y-3">
-        {/* Wallet connect */}
-        {address ? (
-          <button
-            onClick={handleDisconnect}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 12px",
-              borderRadius: "10px",
-              background: "rgba(124,58,237,0.1)",
-              border: "1px solid rgba(124,58,237,0.3)",
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-          >
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <circle cx="6" cy="4" r="2.5" fill="white" />
-                <path d="M1.5 10.5C1.5 8.567 3.567 7 6 7s4.5 1.567 4.5 3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, color: "#c4b5fd" }}>Connected</div>
-              <div style={{ fontSize: "10px", color: "#7c3aed", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {address.slice(0, 8)}…{address.slice(-4)}
-              </div>
-            </div>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: "#4c1d95", flexShrink: 0 }}>
-              <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-          </button>
-        ) : (
-          <button
-            onClick={handleConnect}
-            disabled={connecting}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "10px 12px",
-              borderRadius: "10px",
-              background: connecting ? "rgba(124,58,237,0.05)" : "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-              border: connecting ? "1px solid rgba(124,58,237,0.2)" : "none",
-              color: "white",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: connecting ? "not-allowed" : "pointer",
-              opacity: connecting ? 0.7 : 1,
-              boxShadow: connecting ? "none" : "0 4px 16px rgba(124,58,237,0.3)",
-              transition: "all 0.15s",
-            }}
-          >
-            {connecting ? (
-              <>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ animation: "spin 1s linear infinite" }}>
-                  <path d="M10 6A4 4 0 012 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                Connecting…
-              </>
-            ) : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Connect Wallet
-              </>
-            )}
-          </button>
-        )}
-
-        {/* Wallet error */}
-        {error && (
-          <div
-            style={{
-              padding: "8px 10px",
-              borderRadius: "8px",
-              background: "rgba(239,68,68,0.08)",
-              border: "1px solid rgba(239,68,68,0.2)",
-              fontSize: "10px",
-              color: "#f87171",
-              lineHeight: 1.5,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         {/* Network status */}
         <div
           className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"

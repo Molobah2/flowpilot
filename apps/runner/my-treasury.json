@@ -1,0 +1,19 @@
+{
+  "name": "my-treasury",
+  "recipients": [
+    {
+      "address": "ST2DMQPKCD99PZFF5V2G8RAREQ99F3CQWRCMDAN0Q",
+      "sharePct": 50,
+      "label": "Alice"
+    },
+    {
+      "address": "ST3YXM17S9J4VGG6968AHG51K2CEKJB6TDC7NE888",
+      "sharePct": 35,
+      "label": "Bob"
+    }
+  ],
+  "reservePct": 10,
+  "holdPct": 5,
+  "unlockAt": "2026-08-01T00:00:00Z",
+  "trigger": "deposit"
+}

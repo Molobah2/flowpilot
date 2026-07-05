@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWallet } from "./WalletContext";
 
 const DEMO_TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
 const EXPLORER = "https://explorer.hiro.so/txid/";
@@ -373,18 +372,11 @@ export default function OperationsDashboard() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { address: walletAddr, handleConnect } = useWallet();
   const [manualAddr, setManualAddr] = useState<string | null>(null);
   const [addrInput, setAddrInput] = useState("");
 
-  // Priority: connected wallet > manually entered > demo treasury
-  const address = walletAddr ?? manualAddr ?? DEMO_TREASURY;
-  const isDemo = !walletAddr && !manualAddr;
-
-  // When wallet connects, clear any manual override
-  useEffect(() => {
-    if (walletAddr) setManualAddr(null);
-  }, [walletAddr]);
+  const address = manualAddr ?? DEMO_TREASURY;
+  const isDemo = !manualAddr;
 
   const load = useCallback(async (addr: string, silent = false) => {
     if (!addr) { setLoading(false); return; }
