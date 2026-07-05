@@ -1,0 +1,9 @@
+[build]
+# Run install and compile from the monorepo root so workspace packages
+# (flowpilot-engine, flowvault-sdk) and tsconfig.base.json are resolved.
+buildCommand = "cd ../.. && npm ci && npm run build --workspace=packages/engine && npm run build --workspace=apps/runner"
+
+[deploy]
+startCommand = "node dist/main.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
