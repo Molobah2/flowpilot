@@ -7,6 +7,10 @@
 // Actual fungible token name as reported by the Hiro API
 const USDCX_TOKEN_IDENTIFIER = "usdcx-token";
 
+// Skip transactions below this block height (set WATCHER_MIN_BLOCK on fresh deploys
+// to avoid re-processing already-handled deposits from a previous idempotency store)
+const MIN_BLOCK = parseInt(process.env.WATCHER_MIN_BLOCK ?? "0", 10);
+
 export interface IncomingTransfer {
   txId: string;
   amount: bigint;     // micro-USDCx
@@ -86,6 +90,7 @@ async function poll(
   for (const entry of txs) {
     const tx = entry.tx;
     if (tx.tx_status !== "success") continue;
+    if (MIN_BLOCK > 0 && tx.block_height < MIN_BLOCK) continue;
     if (idempotencyHas(tx.tx_id)) continue;
 
     // ft_transfers may be a single object or an array depending on event count
