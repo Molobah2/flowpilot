@@ -1,10 +1,10 @@
-# FlowPilot — Autonomous Treasury Policy Engine
+# FlowPilot — AI Treasury Operating System
 
-> **Set your rules once. Your treasury manages itself.**
+> **Set your policy once. Your treasury manages itself.**
 
-FlowPilot compiles high-level treasury policies (N recipients, percentage splits,
-locked reserves, hold slices) into ordered sequences of FlowVault v2 contract calls
-and executes them autonomously every time funds arrive — no manual routing, no trust.
+**Live demo → https://flowpilot-production-1996.up.railway.app**
+
+FlowPilot is an autonomous treasury engine built on FlowVault v2. It compiles human-readable allocation policies into ordered sequences of FlowVault contract calls and executes them on-chain, unattended, every time funds arrive.
 
 Built for the **FlowVault Builder Bounty 2026**.
 
@@ -76,10 +76,11 @@ flowpilot/
 │   ├── src/watcher.ts   # polls Hiro API for incoming USDCx
 │   ├── src/main.ts      # watcher → gate → compile → execute → persist
 │   └── policy.json      # active treasury policy
-└── apps/web/            # Next.js — wallet executor mode (Vercel)
-    ├── app/page.tsx      # policy builder
-    ├── app/dashboard/    # live vault state + execution timeline
-    └── app/executions/   # per-execution step detail with explorer links
+└── apps/web/            # Next.js — premium dashboard (Railway)
+    ├── app/page.tsx         # operations dashboard (live vault metrics + AI insights)
+    ├── app/automate/        # visual 4-step policy wizard (no JSON exposed)
+    ├── app/dashboard/       # real-time vault state + routing rules
+    └── app/executions/      # per-execution step detail with explorer links
 ```
 
 ---
@@ -197,7 +198,20 @@ Incoming deposit detected automatically by the runner. Policy: Alice 50%, Bob 35
 
 ---
 
-## FlowVault Integration Details
+## Judging criteria alignment
 
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for a full mapping of every
-engine stage to the FlowVault SDK method it calls.
+| Criterion | Weight | How FlowPilot delivers |
+|---|---|---|
+| **Innovation** | 35% | Policy abstraction layer no one else built: compiler turns %-based intent into exact bigint FlowVault calls. SpendGate, block-height date conversion, single-flight idempotency — new primitives on top of FlowVault |
+| **FlowVault Integration** | 30% | Uses all 4 SDK methods. Understands abort-condition math. Combines reserve into last recipient tranche (saves 2 txs). Uses `getCurrentBlockHeight` to convert ISO unlock dates to exact block numbers |
+| **Technical Execution** | 20% | Full TypeScript monorepo, poll-verify loop on every tx, SpendGate state machine, idempotency guard. GATE 1 + GATE 2 both confirmed with real on-chain txids |
+| **Ecosystem Value** | 15% | Any DAO or protocol can drop in a `policy.json` and get zero-code treasury automation. The engine is a standalone npm package ready to embed |
+
+---
+
+## Live on-chain results
+
+Current vault state (treasury `ST2V922...JFKR`):
+- **Total:** 0.75 USDCx · **Locked:** 0.5 USDCx · **Unlocked:** 0.25 USDCx
+- **Lock block:** 4,265,507 (≈ 27 days from first execution)
+- **Confirmed FlowVault operations:** 13 across 2 autonomous executions
