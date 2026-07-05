@@ -127,20 +127,6 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Bounty badge */}
-        <div
-          className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
-          style={{ background: "rgba(124,58,237,0.07)", border: "1px solid rgba(124,58,237,0.15)" }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
-            <path d="M6 1L7.3 4.2H10.5L8 6.3L8.9 9.5L6 7.8L3.1 9.5L4 6.3L1.5 4.2H4.7L6 1Z" fill="#a78bfa" />
-          </svg>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 500, color: "#a78bfa" }}>FlowVault Bounty</div>
-            <div style={{ fontSize: "10px", color: "#4c1d95" }}>Builder submission 2026</div>
-          </div>
-        </div>
-
         {/* GitHub */}
         <a
           href="https://github.com/Molobah2/flowpilot"
