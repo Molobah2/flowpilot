@@ -107,6 +107,15 @@ async function handleDeposit(
     );
     lockUntilBlock = blockInfo.lockUntilBlock;
     blockRateEstimate = blockInfo.blockRateEstimate;
+
+    // The contract enforces locks can only be extended (ERR-INVALID-LOCK-BLOCK u1008).
+    // If our estimate is lower than the existing lock, clamp up to avoid the error.
+    const vaultState = await sdk.getVaultState(TREASURY_ADDRESS);
+    if (vaultState.lockUntilBlock > lockUntilBlock) {
+      console.log(`[runner] Clamping lockUntilBlock ${lockUntilBlock} → ${vaultState.lockUntilBlock} (existing lock is higher)`);
+      lockUntilBlock = vaultState.lockUntilBlock;
+    }
+
     console.log(`[runner] lockUntilBlock: ${lockUntilBlock} (msPerBlock: ${blockRateEstimate.msPerBlock.toFixed(0)}ms)`);
   } else {
     lockUntilBlock = await quickBlockHeight(sdk, TREASURY_ADDRESS);
