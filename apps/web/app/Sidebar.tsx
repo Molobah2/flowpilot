@@ -45,7 +45,7 @@ const NAV = [
 
 export function Sidebar() {
   const path = usePathname();
-  const { address, connecting, handleConnect, handleDisconnect } = useWallet();
+  const { address, connecting, error, handleConnect, handleDisconnect } = useWallet();
 
   return (
     <aside
@@ -200,6 +200,23 @@ export function Sidebar() {
               </>
             )}
           </button>
+        )}
+
+        {/* Wallet error */}
+        {error && (
+          <div
+            style={{
+              padding: "8px 10px",
+              borderRadius: "8px",
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.2)",
+              fontSize: "10px",
+              color: "#f87171",
+              lineHeight: 1.5,
+            }}
+          >
+            {error}
+          </div>
         )}
 
         {/* Network status */}
