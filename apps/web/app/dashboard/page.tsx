@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useWallet } from "../WalletContext";
 
-const TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
+const DEMO_TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
 const EXPLORER = "https://explorer.hiro.so/txid/";
 
 interface VaultState {
@@ -47,13 +48,23 @@ function StatRow({ label, value, accent }: { label: string; value: string; accen
 }
 
 export default function VaultPage() {
-  const [address, setAddress] = useState(TREASURY);
-  const [inputAddr, setInputAddr] = useState(TREASURY);
+  const { address: walletAddr } = useWallet();
+  const defaultAddr = walletAddr ?? DEMO_TREASURY;
+  const [address, setAddress] = useState(defaultAddr);
+  const [inputAddr, setInputAddr] = useState(defaultAddr);
   const [vault, setVault] = useState<VaultState | null>(null);
   const [rules, setRules] = useState<RoutingRules | null>(null);
   const [blockHeight, setBlockHeight] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // When wallet connects, switch to user's own vault
+  useEffect(() => {
+    if (walletAddr) {
+      setAddress(walletAddr);
+      setInputAddr(walletAddr);
+    }
+  }, [walletAddr]);
 
   const load = useCallback(async (addr: string) => {
     if (!addr) return;

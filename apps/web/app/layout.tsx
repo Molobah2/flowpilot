@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "./Sidebar";
+import { WalletProvider } from "./WalletContext";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -61,15 +62,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* App shell */}
-        <div className="relative flex h-full min-h-screen" style={{ zIndex: 1 }}>
-          <Sidebar />
-          <div
-            className="flex-1 flex flex-col min-h-screen overflow-auto"
-            style={{ marginLeft: "240px" }}
-          >
-            {children}
+        <WalletProvider>
+          <div className="relative flex h-full min-h-screen" style={{ zIndex: 1 }}>
+            <Sidebar />
+            <div
+              className="flex-1 flex flex-col min-h-screen overflow-auto"
+              style={{ marginLeft: "240px" }}
+            >
+              {children}
+            </div>
           </div>
-        </div>
+        </WalletProvider>
       </body>
     </html>
   );

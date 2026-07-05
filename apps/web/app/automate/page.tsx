@@ -194,6 +194,16 @@ export default function AutomatePage() {
   const [showDev, setShowDev] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  function downloadPolicy() {
+    const blob = new Blob([policyJson], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${policyName || "policy"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const total = recipients.reduce((s, r) => s + r.sharePct, 0) + reservePct + holdPct;
   const balanced = Math.abs(total - 100) < 0.5;
 
@@ -779,24 +789,38 @@ export default function AutomatePage() {
                     </div>
                   </div>
 
-                  {/* Activate CTA */}
-                  <div
+                  {/* Download CTA */}
+                  <button
+                    onClick={downloadPolicy}
                     style={{
-                      padding: "16px",
-                      background: "rgba(124,58,237,0.08)",
-                      border: "1px solid rgba(124,58,237,0.2)",
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "14px 20px",
                       borderRadius: "12px",
-                      marginBottom: "16px",
+                      background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                      border: "none",
+                      color: "white",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      boxShadow: "0 4px 20px rgba(124,58,237,0.3)",
+                      marginBottom: "12px",
+                      transition: "all 0.15s",
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 6px 28px rgba(124,58,237,0.45)")}
+                    onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,58,237,0.3)")}
                   >
-                    <div style={{ fontSize: "13px", color: "#a78bfa", fontWeight: 500, marginBottom: "4px" }}>
-                      To activate this policy:
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#7c3aed", lineHeight: 1.6 }}>
-                      1. Copy the policy configuration below<br />
-                      2. Save it as <code style={{ fontFamily: "var(--font-mono)", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>policy.json</code> in your FlowPilot runner<br />
-                      3. The runner will auto-execute on next deposit
-                    </div>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 1v8M3.5 6l3.5 3.5L10.5 6" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M1.5 11h11" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+                    </svg>
+                    Download policy.json
+                  </button>
+                  <div style={{ fontSize: "12px", color: "#52525b", textAlign: "center", marginBottom: "16px" }}>
+                    Save this file to your FlowPilot runner directory — it will execute automatically on every incoming deposit.
                   </div>
 
                   {/* Developer section (collapsed by default) */}

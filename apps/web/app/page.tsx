@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useWallet } from "./WalletContext";
 
-const TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
+const DEMO_TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "";
 const EXPLORER = "https://explorer.hiro.so/txid/";
 
 interface VaultState {
@@ -372,7 +373,10 @@ export default function OperationsDashboard() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const address = TREASURY;
+  const { address: walletAddr, handleConnect } = useWallet();
+  // Use connected wallet, or fall back to demo treasury
+  const address = walletAddr ?? DEMO_TREASURY;
+  const isDemo = !walletAddr;
 
   const load = useCallback(async (addr: string, silent = false) => {
     if (!addr) { setLoading(false); return; }
@@ -451,7 +455,7 @@ export default function OperationsDashboard() {
             <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.02em", color: "#f0f0f3", lineHeight: 1.1, marginBottom: "8px" }}>
               Treasury Operations
             </h1>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <span
                 style={{
                   fontSize: "11px",
@@ -480,6 +484,23 @@ export default function OperationsDashboard() {
               >
                 Testnet
               </span>
+              {isDemo && (
+                <button
+                  onClick={handleConnect}
+                  style={{
+                    fontSize: "11px",
+                    color: "#a78bfa",
+                    background: "rgba(124,58,237,0.08)",
+                    border: "1px solid rgba(124,58,237,0.2)",
+                    borderRadius: "6px",
+                    padding: "3px 10px",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  Demo — Connect wallet to view your vault →
+                </button>
+              )}
             </div>
           </div>
 

@@ -1,0 +1,95 @@
+FLOWPILOT — WHAT WE BUILT (plain English)
+==========================================
+
+THE SIMPLE VERSION
+------------------
+Imagine you run a small business and every time a client pays you,
+you have to manually:
+  - Send 50% to your co-founder
+  - Send 35% to your contractor
+  - Put 10% into a savings account you can't touch for 3 months
+  - Keep 5% in your main account as a buffer
+
+That's annoying. FlowPilot automates all of that — but for crypto.
+
+You write the rules once ("Alice gets 50%, Bob gets 35%, reserve 10%,
+hold 5%"). After that, every time money arrives, FlowPilot does the
+splitting automatically, on the blockchain, no human needed.
+
+
+WHAT'S ACTUALLY HAPPENING UNDER THE HOOD
+-----------------------------------------
+FlowVault is a smart contract (a self-executing program on the Stacks
+blockchain) that can hold and route crypto tokens.
+
+FlowPilot sits on top of it and does three things:
+
+1. UNDERSTANDS your rules
+   You write: "Alice 50%, Bob 35%, Reserve 10% locked until Aug 2026"
+   FlowPilot converts that into exact instructions the blockchain accepts.
+
+2. WATCHES your wallet 24/7
+   A background program (the "runner") checks every 10 seconds if any
+   money has arrived. When it does, it automatically runs the rules.
+
+3. PROVES it worked
+   Every transfer is a real blockchain transaction with a public ID.
+   Anyone can look it up and verify it happened — no trust required.
+
+We proved this works. During our test we sent 5 USDCx (test tokens)
+to the treasury address while the runner was running unattended. It
+detected the deposit automatically and split the funds correctly —
+13 confirmed blockchain transactions as proof.
+
+
+THE WEBSITE
+-----------
+The website is a window into your treasury. It shows you:
+  - How much is in the vault right now
+  - How much is locked (can't be touched until Aug 2026)
+  - Every automation event that has happened
+  - A tool to build new routing rules visually
+
+Live site: https://flowpilot-production-1996.up.railway.app
+
+
+HOW TO TEST THE SITE (step by step)
+-------------------------------------
+
+STEP 1 — Open the dashboard
+Go to: https://flowpilot-production-1996.up.railway.app
+You should see a dark dashboard load automatically with real numbers.
+
+STEP 2 — Check the Overview page (you're already on it)
+Look for these 4 cards at the top:
+  - Treasury Balance  →  should show ~0.7500 USDCx
+  - Locked Reserve   →  should show ~0.5000 USDCx (locked until Aug 2026)
+  - Automated Events →  should show a number (our test runs)
+  - Success Rate     →  should show 100%
+
+Below that you'll see:
+  - A flow diagram showing how money moves (Incoming → Engine → Alice/Bob/Reserve/Hold)
+  - AI Insights panel with smart observations about your treasury
+  - A live activity feed of every blockchain transaction
+
+STEP 3 — Click "Automate" in the left sidebar
+This is the policy builder. It's a 4-step wizard:
+  Step 1: Choose when automation runs (we use "On Every Deposit")
+  Step 2: Add who gets paid and what percentage
+  Step 3: Set how much to lock up and for how long
+  Step 4: Review the full summary
+
+Notice the Live Preview panel on the right updates as you change things.
+No JSON or blockchain code is ever shown to the user — it stays hidden.
+
+STEP 4 — Click "Vault" in the left sidebar
+This shows the raw blockchain state of the FlowVault contract:
+  - Total, unlocked, and locked balances
+  - How many blocks until the lock expires
+  - The active routing slot
+
+STEP 5 — Click any transaction in the activity feed (Overview page)
+It opens the Hiro Explorer (blockchain explorer) showing the actual
+on-chain record of that transaction — proof it really happened.
+
+
