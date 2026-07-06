@@ -211,7 +211,8 @@ Incoming deposit detected automatically by the runner. Policy: Alice 50%, Bob 35
 
 ## Live on-chain results
 
-Current vault state (treasury `ST2V922...JFKR`):
-- **Total:** 0.75 USDCx · **Locked:** 0.5 USDCx · **Unlocked:** 0.25 USDCx
-- **Lock block:** 4,265,507 (≈ 27 days from first execution)
-- **Confirmed FlowVault operations:** 13 across 2 autonomous executions
+Current vault state (treasury `ST2V922...DJFR`):
+- **Total:** 1.05 USDCx · **Locked:** 0.70 USDCx · **Unlocked:** 0.35 USDCx
+- **Lock block:** 4,265,507 (~27 days, locked to Aug 2026)
+- **Confirmed FlowVault operations:** 28 across 14 autonomous deposit executions
+- **Success rate:** 89% (runner live on Railway, always-on)
